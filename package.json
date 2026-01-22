@@ -1,0 +1,16 @@
+{
+  "name": "merch-shop-monorepo",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "pnpm --filter affinity-stone dev",
+    "build": "pnpm --filter affinity-stone build",
+    "start": "pnpm --filter affinity-stone start",
+    "lint": "pnpm --filter affinity-stone lint"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "pnpm": ">=8.0.0"
+  },
+  "packageManager": "pnpm@8.15.0"
+}

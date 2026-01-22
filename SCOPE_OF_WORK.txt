@@ -1,0 +1,105 @@
+AFFINITY STONE REWARDS MERCH SHOP - SCOPE OF WORK
+==================================================
+
+1. PROJECT OVERVIEW
+
+West Wave Creative will design and implement a branded, web-based rewards merch shop for Affinity Stone. 
+The platform will allow approved users to redeem points for branded merchandise through a simple, secure online experience.
+This project focuses on delivering a clean, easy-to-manage MVP (Minimum Viable Product).
+
+2. SCOPE OF WORK
+
+2.1 User Experience (Front-End)
+- Secure user login
+- User dashboard displaying current points balance
+- Product catalog with:
+  * Product images
+  * Descriptions
+  * Categories
+  * Point-based pricing
+  * Size and/or color options (where applicable)
+- Product detail pages
+- Points-only shopping cart and checkout
+- Shipping information capture
+- Order confirmation
+- User order history
+- Points history (earned and redeemed)
+
+2.2 Points System & Pricing Logic
+- Each user has an individual points balance
+- Points are used as the sole currency within the store
+- Admins control all point balances
+- Store-wide USD-to-Points conversion tool, allowing:
+  * A single exchange rate to be updated globally
+  * All product prices to adjust automatically based on that rate
+- No automated sales, HR, or ERP integrations are included in this phase
+
+2.3 Admin Portal (Lightweight Backend)
+Affinity Stone will receive access to a lightweight admin dashboard that allows designated administrators to:
+- Manage products:
+  * Add, edit, or deactivate items
+  * Set base USD value and point pricing
+  * Manage basic inventory visibility
+- Manage users:
+  * View and edit users
+  * Activate or deactivate access
+- Manage points:
+  * Manual point adjustments
+  * Bulk point uploads via CSV
+- Manage orders:
+  * View orders
+  * Update order status (e.g., New, In Progress, Shipped)
+  * Add internal notes or tracking information
+- View basic reporting:
+  * Points issued vs. redeemed
+  * Most redeemed products
+  * Export data via CSV as needed
+
+2.4 Branding & Content
+The platform will be branded specifically for Affinity Stone, including:
+- Use of Affinity Stone logo, colors, and fonts (provided by client)
+- Basic informational pages:
+  * "What Are Points?"
+  * "How to Earn Points"
+  * Terms & Conditions
+  * FAQ (basic)
+- Placeholder product imagery may be used initially if final product photos are not available at launch
+
+3. DELIVERABLES
+- A live, branded Affinity Stone rewards merch shop
+- A dedicated database for Affinity Stone
+- A lightweight admin backend for managing users, products, points, and orders
+- A global USD-to-Points pricing calculator
+- Initial configuration and setup
+- Admin onboarding walkthrough
+
+4. OUT OF SCOPE (Not Included)
+The following items are not included unless explicitly added via a future agreement:
+- Credit card or cash checkout
+- Automated sales, CRM, HR, or ERP integrations
+- Merchandise sourcing, production, or fulfillment
+- Advanced analytics or custom reporting
+- Mobile application development
+- Future Shopify store setup
+- Integration with NetSuite or other ERP systems
+
+5. MVP PRIORITIES
+Phase 1 (COMPLETED):
+✓ Database schema with RLS policies
+✓ User authentication
+✓ User-facing read views (dashboard, catalog, orders, points history)
+✓ Admin read views (dashboard, products, users, orders, points, reports)
+
+Phase 2 (IN PROGRESS):
+✓ Admin: Update USD→Points conversion rate
+✓ Admin: Manual points adjustments
+- Customer: Shopping cart functionality
+- Customer: Checkout flow with shipping capture
+- Customer: Order placement with points deduction
+
+Phase 3 (UPCOMING):
+- Admin: Product CRUD operations
+- Admin: Order status updates
+- Admin: Bulk points CSV upload
+- Email notifications
+- Product categories/filtering

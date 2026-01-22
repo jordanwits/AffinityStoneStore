@@ -1,0 +1,35 @@
+Project: Affinity Stone Rewards Merch Shop
+
+Always reference SCOPE_OF_WORK.txt when working on features for this project.
+
+Key Guidelines:
+1. This is an MVP - prioritize simple, working solutions over complex features
+2. Use Next.js 15 App Router with Server Components and Server Actions (avoid API routes unless necessary)
+3. All admin write operations require authentication check via requireAdmin() helper
+4. Always add isDevMode checks to prevent crashes when Supabase isn't configured
+5. Use existing patterns from the codebase (check similar pages before implementing)
+6. Revalidate affected routes after data mutations
+7. Don't create .md files unless explicitly requested
+8. When building features, implement in small, testable chunks that add immediate value
+9. Use Windows 10 commands (PowerShell doesn't accept "&&")
+10. Ignore all .md files unless explicitly referenced
+
+Tech Stack:
+- Next.js 15 (App Router)
+- Supabase (auth + PostgreSQL with RLS)
+- TypeScript
+- Tailwind CSS
+- Server Components + Server Actions (prefer over client-side)
+- pnpm workspaces (monorepo)
+
+File Structure:
+- apps/affinity-stone/ - Main Next.js app for Affinity Stone client
+- packages/core/ - Shared UI components for all future clients
+- Database migrations in apps/affinity-stone/supabase/migrations/
+
+Development Mode:
+- The app supports "dev mode" with placeholder Supabase credentials
+- Check isDevMode with: !process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL.includes('placeholder')
+- In dev mode, show mock data and disable write operations with clear messaging
+
+Current Status: See Phase tracking in SCOPE_OF_WORK.txt

@@ -1,0 +1,191 @@
+MERCH SHOP - SETUP INSTRUCTIONS
+================================
+
+This is a multi-tenant merch shop platform built with Next.js 15, Supabase, and Tailwind CSS.
+Built for: Affinity Stone (with 2 more clients to come)
+
+QUICK START
+-----------
+
+1. INSTALL DEPENDENCIES
+
+   pnpm install
+
+   (If you don't have pnpm, install it first: npm install -g pnpm)
+
+
+2. SET UP SUPABASE
+
+   a) Create a Supabase project at https://app.supabase.com
+   
+   b) Run the SQL migrations in order:
+      - Go to SQL Editor in Supabase dashboard
+      - Copy/paste each file in order:
+        * apps/affinity-stone/supabase/migrations/001_initial_schema.sql
+        * apps/affinity-stone/supabase/migrations/002_rls_policies.sql
+        * apps/affinity-stone/supabase/migrations/003_seed_data.sql
+      - Execute each one
+   
+   c) Get your API credentials:
+      - Go to Project Settings > API
+      - Copy these values:
+        * Project URL
+        * anon/public key
+        * service_role key
+
+
+3. CONFIGURE ENVIRONMENT VARIABLES
+
+   Create: apps/affinity-stone/.env.local
+   
+   Add these lines (replace with your actual Supabase values):
+
+   NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+   NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key-here
+   SUPABASE_SERVICE_ROLE_KEY=your-service-role-key-here
+
+
+4. CREATE YOUR FIRST ADMIN USER
+
+   a) In Supabase dashboard, go to Authentication > Users
+   b) Click "Add User" and create with email/password
+   c) In SQL Editor, run this to make them an admin:
+   
+      UPDATE profiles 
+      SET role = 'admin' 
+      WHERE email = 'your-admin@company.com';
+
+
+5. RUN THE APP
+
+   pnpm dev
+
+   App runs at: http://localhost:3000
+
+
+6. TEST IT OUT
+
+   - Visit http://localhost:3000
+   - You'll be redirected to /login
+   - Login with your admin credentials
+   - You should see:
+     * Dashboard with 0 points (no points issued yet)
+     * Navigation to Catalog, Orders, Points
+     * Admin link in top nav (because you're an admin)
+     * Catalog shows 5 sample products with placeholder images
+
+
+WHAT'S INCLUDED (BONES)
+-----------------------
+
+USER FEATURES:
+- Email/password authentication
+- Dashboard (points balance, recent activity)
+- Product catalog (browse, view details)
+- Points history (all transactions)
+- Order history (view past orders)
+- Cart/checkout pages (placeholders, "coming soon")
+
+ADMIN FEATURES:
+- Admin dashboard (user/product/order counts)
+- User management (view all users, roles, status)
+- Product management (view products, pricing)
+- Points management (view all transactions, bulk upload placeholder)
+- Order management (view orders, update status placeholder)
+- Reports (points issued/redeemed, top products)
+
+DATABASE:
+- Users/profiles (auth.users + profiles table with roles)
+- Points ledger (immutable audit trail)
+- Products & variants (size/color options)
+- Orders & order items (full order history)
+- Store settings (USD to points conversion rate)
+- RLS policies (users see their own data, admins see all)
+
+
+MULTI-CLIENT STRATEGY
+----------------------
+
+This setup is for Affinity Stone. To add the 2 other clients:
+
+1. Duplicate apps/affinity-stone to apps/client-2
+2. Update apps/client-2/branding.ts with new client colors/name
+3. Create separate Supabase project for client-2
+4. Run same migrations, update .env.local
+5. Repeat for client-3
+
+All clients share the same UI components from packages/core.
+
+
+WHAT'S NOT YET IMPLEMENTED
+---------------------------
+
+These are "coming soon" placeholders in the UI:
+- Shopping cart functionality (add to cart, manage cart)
+- Checkout flow (capture shipping, place order)
+- Admin CRUD operations (add/edit products, users, points manually)
+- Bulk points upload via CSV
+- Order status updates from admin
+- Email notifications
+
+The "bones" are complete - these features can be built on top of this foundation.
+
+
+NEXT STEPS
+----------
+
+After confirming the bones work:
+1. Implement shopping cart + checkout
+2. Add admin CRUD forms
+3. Add email notifications
+4. Polish UI/UX
+5. Add product image uploads
+6. Implement search/filtering
+7. Add pagination
+
+
+TROUBLESHOOTING
+---------------
+
+- If dev mode banner persists, check .env.local is in apps/affinity-stone folder
+- If login fails, verify migrations ran successfully in Supabase
+- If admin link doesn't show, confirm your user has role='admin' in profiles table
+- If products don't show, run migration 003 (seed data)
+
+
+TECH STACK
+----------
+
+- Next.js 15 (App Router)
+- TypeScript
+- Supabase (Auth + PostgreSQL + RLS)
+- Tailwind CSS
+- pnpm workspaces (monorepo)
+- React 19
+
+
+STRUCTURE
+---------
+
+apps/
+  affinity-stone/          Main app for Affinity Stone client
+    app/                   Next.js App Router pages
+      (auth)/              Login/logout routes
+      (app)/               User-facing routes (protected)
+      (admin)/             Admin routes (admin-only)
+    lib/                   Utilities (Supabase clients, auth helpers)
+    supabase/              SQL migrations
+    branding.ts            Client-specific branding config
+
+packages/
+  core/                    Shared UI components for all clients
+    components/            Button, Input, Card, etc.
+
+
+SUPPORT
+-------
+
+For questions or issues during development, check:
+- apps/affinity-stone/supabase/README.txt
+- Supabase documentation: https://supabase.com/docs
+- Next.js documentation: https://nextjs.org/docs
