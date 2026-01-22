@@ -49,7 +49,7 @@ export function TransactionRow({ transaction }: TransactionRowProps) {
                 fill="none" 
                 stroke="currentColor" 
                 viewBox="0 0 24 24"
-                title="Linked to order"
+                aria-label="Linked to order"
               >
                 <path 
                   strokeLinecap="round" 

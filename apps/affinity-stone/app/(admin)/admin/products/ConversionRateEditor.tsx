@@ -45,7 +45,7 @@ export default function ConversionRateEditor({ currentRate, isDevMode }: Convers
             <Input
               type="number"
               value={rate}
-              onChange={(e) => setRate(e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setRate(e.target.value)}
               min="0.01"
               step="0.01"
               disabled={isDevMode || loading}

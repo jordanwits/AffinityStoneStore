@@ -311,7 +311,7 @@ export default function CheckoutPageClient({
                         type="text"
                         required={deliveryMethod === 'delivery'}
                         value={shipName}
-                        onChange={(e) => setShipName(e.target.value)}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setShipName(e.target.value)}
                         placeholder="John Doe"
                       />
                     </div>
@@ -325,7 +325,7 @@ export default function CheckoutPageClient({
                         type="text"
                         required={deliveryMethod === 'delivery'}
                         value={shipAddressLine1}
-                        onChange={(e) => setShipAddressLine1(e.target.value)}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setShipAddressLine1(e.target.value)}
                         placeholder="123 Main St"
                       />
                     </div>
@@ -338,7 +338,7 @@ export default function CheckoutPageClient({
                         id="shipAddressLine2"
                         type="text"
                         value={shipAddressLine2}
-                        onChange={(e) => setShipAddressLine2(e.target.value)}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setShipAddressLine2(e.target.value)}
                         placeholder="Apt 4B"
                       />
                     </div>
@@ -353,7 +353,7 @@ export default function CheckoutPageClient({
                           type="text"
                           required={deliveryMethod === 'delivery'}
                           value={shipCity}
-                          onChange={(e) => setShipCity(e.target.value)}
+                          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setShipCity(e.target.value)}
                           placeholder="New York"
                         />
                       </div>
@@ -367,7 +367,7 @@ export default function CheckoutPageClient({
                           type="text"
                           required={deliveryMethod === 'delivery'}
                           value={shipState}
-                          onChange={(e) => setShipState(e.target.value)}
+                          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setShipState(e.target.value)}
                           placeholder="NY"
                         />
                       </div>
@@ -383,7 +383,7 @@ export default function CheckoutPageClient({
                           type="text"
                           required={deliveryMethod === 'delivery'}
                           value={shipZip}
-                          onChange={(e) => setShipZip(e.target.value)}
+                          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setShipZip(e.target.value)}
                           placeholder="10001"
                         />
                       </div>
@@ -397,7 +397,7 @@ export default function CheckoutPageClient({
                           type="text"
                           required={deliveryMethod === 'delivery'}
                           value={shipCountry}
-                          onChange={(e) => setShipCountry(e.target.value)}
+                          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setShipCountry(e.target.value)}
                           placeholder="US"
                         />
                       </div>

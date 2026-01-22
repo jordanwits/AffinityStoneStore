@@ -171,10 +171,10 @@ export default async function DashboardPage({
     }
     
     // Extract filter options
-    allCategories = [...new Set(mockProducts.map(p => p.category).filter(Boolean))];
+    allCategories = [...new Set(mockProducts.map(p => p.category).filter((c): c is string => Boolean(c)))];
     allCollections = [...new Set(mockProducts.flatMap(p => p.collections || []))];
-    allSizes = [...new Set(mockVariants.map(v => v.size).filter(Boolean))];
-    allColors = [...new Set(mockVariants.map(v => v.color).filter(Boolean))];
+    allSizes = [...new Set(mockVariants.map(v => v.size).filter((s): s is string => Boolean(s)))];
+    allColors = [...new Set(mockVariants.map(v => v.color).filter((c): c is string => Boolean(c)))];
     
   } else {
     const supabase = await createClient();

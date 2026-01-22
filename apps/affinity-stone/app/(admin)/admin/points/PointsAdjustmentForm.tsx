@@ -94,7 +94,7 @@ export default function PointsAdjustmentForm({ isDevMode }: PointsAdjustmentForm
           </div>
           <select
             value={selectedUserId}
-            onChange={(e) => setSelectedUserId(e.target.value)}
+            onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setSelectedUserId(e.target.value)}
             disabled={isDevMode || loading || loadingUsers}
             required
             className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed disabled:text-gray-500"
@@ -121,7 +121,7 @@ export default function PointsAdjustmentForm({ isDevMode }: PointsAdjustmentForm
             label="Points Adjustment"
             type="number"
             value={deltaPoints}
-            onChange={(e) => setDeltaPoints(e.target.value)}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setDeltaPoints(e.target.value)}
             disabled={isDevMode || loading}
             placeholder="e.g., 100 or -50"
             required
@@ -137,7 +137,7 @@ export default function PointsAdjustmentForm({ isDevMode }: PointsAdjustmentForm
           label="Reason"
           type="text"
           value={reason}
-          onChange={(e) => setReason(e.target.value)}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setReason(e.target.value)}
           disabled={isDevMode || loading}
           placeholder="e.g., Monthly bonus, Order correction"
           required
