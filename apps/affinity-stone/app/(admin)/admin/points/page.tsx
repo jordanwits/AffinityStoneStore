@@ -3,6 +3,7 @@ import { Card, CardHeader, CardContent } from 'core/components/Card';
 import { Button } from 'core/components/Button';
 import PointsAdjustmentForm from './PointsAdjustmentForm';
 import { TransactionRow } from './TransactionRow';
+import { BulkPointsUpload } from './BulkPointsUpload';
 
 export default async function AdminPointsPage() {
   // Check if using placeholder Supabase (dev mode)
@@ -50,11 +51,7 @@ export default async function AdminPointsPage() {
           <h1 className="text-3xl font-bold text-gray-900">Points</h1>
           <p className="text-gray-600 mt-1">Manage user points and transactions</p>
         </div>
-        <div className="space-x-3">
-          <Button variant="outline" disabled>
-            Bulk Upload CSV (Coming Soon)
-          </Button>
-        </div>
+        <BulkPointsUpload isDevMode={isDevMode} />
       </div>
 
       <Card className="mb-6">

@@ -48,7 +48,8 @@ export async function updateSession(request: NextRequest) {
                      request.nextUrl.pathname.startsWith('/admin');
 
   const isAuthRoute = request.nextUrl.pathname.startsWith('/login') ||
-                      request.nextUrl.pathname.startsWith('/logout');
+                      request.nextUrl.pathname.startsWith('/logout') ||
+                      request.nextUrl.pathname.startsWith('/update-password');
 
   if (isAppRoute && !user) {
     // Redirect to login if trying to access protected route without auth
@@ -57,11 +58,14 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  if (isAuthRoute && user && request.nextUrl.pathname === '/login') {
+  if (isAuthRoute && user) {
     // Redirect to dashboard if already logged in and trying to access login
-    const url = request.nextUrl.clone();
-    url.pathname = '/dashboard';
-    return NextResponse.redirect(url);
+    // But allow /update-password to process password reset tokens
+    if (request.nextUrl.pathname === '/login') {
+      const url = request.nextUrl.clone();
+      url.pathname = '/dashboard';
+      return NextResponse.redirect(url);
+    }
   }
 
   return supabaseResponse;

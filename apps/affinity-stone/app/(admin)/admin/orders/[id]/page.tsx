@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server';
 import { Card, CardHeader, CardContent } from 'core/components/Card';
 import { Button } from 'core/components/Button';
 import { notFound } from 'next/navigation';
+import { OrderStatusEditor } from './OrderStatusEditor';
 
 export default async function AdminOrderDetailPage({
   params,
@@ -48,9 +49,13 @@ export default async function AdminOrderDetailPage({
             Placed on {new Date(order.created_at).toLocaleString()}
           </p>
         </div>
-        <Button variant="primary" disabled>
-          Update Status (Coming Soon)
-        </Button>
+        <OrderStatusEditor
+          orderId={order.id}
+          currentStatus={order.status}
+          currentTrackingNumber={order.tracking_number}
+          currentNotes={order.notes}
+          isDevMode={isDevMode}
+        />
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">

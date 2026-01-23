@@ -4,8 +4,22 @@ import { Card, CardHeader, CardContent } from 'core/components/Card';
 import { PageHeader } from 'core/components/PageHeader';
 import { EmptyState } from 'core/components/EmptyState';
 import { Badge } from 'core/components/Badge';
+import { Button } from 'core/components/Button';
+import Link from 'next/link';
 
-export default async function PointsHistoryPage() {
+interface PointsHistoryPageProps {
+  searchParams: Promise<{
+    days?: string;
+    page?: string;
+  }>;
+}
+
+export default async function PointsHistoryPage({ searchParams }: PointsHistoryPageProps) {
+  const params = await searchParams;
+  const daysFilter = parseInt(params.days || '90', 10); // Default to last 90 days
+  const currentPage = parseInt(params.page || '1', 10);
+  const itemsPerPage = 50;
+  
   // Check if using placeholder Supabase (dev mode)
   const isDevMode = !process.env.NEXT_PUBLIC_SUPABASE_URL || 
                     process.env.NEXT_PUBLIC_SUPABASE_URL.includes('placeholder');
@@ -14,6 +28,8 @@ export default async function PointsHistoryPage() {
   let history: any[] = [];
   let totalEarned = 0;
   let totalSpent = 0;
+  let totalCount = 0;
+  let hasMore = false;
   
   if (isDevMode) {
     // Mock data for dev mode
@@ -46,28 +62,45 @@ export default async function PointsHistoryPage() {
     ];
     totalEarned = 3000;
     totalSpent = 500;
+    totalCount = 4;
   } else {
     const supabase = await createClient();
     const user = await getCurrentUser();
 
     if (!user) return null;
 
-    // Get points balance
+    // Get points balance (always full balance)
     const { data: balance } = await supabase.rpc('get_user_points_balance', {
       p_user_id: user.id,
     });
     pointsBalance = balance || 0;
 
-    // Get all points history
+    // Calculate date cutoff
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - daysFilter);
+
+    // Get total count for pagination
+    const { count } = await supabase
+      .from('points_ledger')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', user.id)
+      .gte('created_at', cutoffDate.toISOString());
+    
+    totalCount = count || 0;
+    hasMore = totalCount > currentPage * itemsPerPage;
+
+    // Get paginated points history with date filter
     const { data: historyData } = await supabase
       .from('points_ledger')
       .select('*')
       .eq('user_id', user.id)
-      .order('created_at', { ascending: false });
+      .gte('created_at', cutoffDate.toISOString())
+      .order('created_at', { ascending: false })
+      .range((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage - 1);
 
     history = historyData || [];
 
-    // Calculate totals
+    // Calculate totals for the filtered period
     totalEarned = history
       ?.filter((entry) => entry.delta_points > 0)
       .reduce((sum, entry) => sum + entry.delta_points, 0) || 0;
@@ -79,12 +112,43 @@ export default async function PointsHistoryPage() {
     );
   }
 
+  const totalPages = Math.ceil(totalCount / itemsPerPage);
+
   return (
     <div>
       <PageHeader 
         title="Points History" 
-        subtitle="Track your earnings and redemptions"
+        subtitle={`Track your earnings and redemptions (last ${daysFilter} days)`}
       />
+
+      {/* Date filter controls */}
+      <div className="mb-6 flex flex-wrap gap-2">
+        <Link href={`/points-history?days=30&page=1`}>
+          <Button variant={daysFilter === 30 ? 'primary' : 'outline'} size="sm">
+            Last 30 days
+          </Button>
+        </Link>
+        <Link href={`/points-history?days=90&page=1`}>
+          <Button variant={daysFilter === 90 ? 'primary' : 'outline'} size="sm">
+            Last 90 days
+          </Button>
+        </Link>
+        <Link href={`/points-history?days=180&page=1`}>
+          <Button variant={daysFilter === 180 ? 'primary' : 'outline'} size="sm">
+            Last 6 months
+          </Button>
+        </Link>
+        <Link href={`/points-history?days=365&page=1`}>
+          <Button variant={daysFilter === 365 ? 'primary' : 'outline'} size="sm">
+            Last year
+          </Button>
+        </Link>
+        <Link href={`/points-history?days=9999&page=1`}>
+          <Button variant={daysFilter === 9999 ? 'primary' : 'outline'} size="sm">
+            All time
+          </Button>
+        </Link>
+      </div>
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-8">
@@ -135,13 +199,14 @@ export default async function PointsHistoryPage() {
       <Card>
         <CardHeader className="bg-gray-50">
           <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-gray-900">All Transactions</h2>
-            <Badge variant="default">{history.length} total</Badge>
+            <h2 className="text-lg font-semibold text-gray-900">Recent Transactions</h2>
+            <Badge variant="default">{totalCount} in period</Badge>
           </div>
         </CardHeader>
         <CardContent>
           {history && history.length > 0 ? (
-            <div className="divide-y">
+            <>
+              <div className="divide-y">
               {history.map((entry) => (
                 <div
                   key={entry.id}
@@ -190,6 +255,30 @@ export default async function PointsHistoryPage() {
                 </div>
               ))}
             </div>
+
+            {/* Pagination controls */}
+            {totalPages > 1 && (
+              <div className="mt-6 flex items-center justify-center gap-2 pt-6 border-t">
+                {currentPage > 1 && (
+                  <Link href={`/points-history?days=${daysFilter}&page=${currentPage - 1}`}>
+                    <Button variant="outline" size="sm">
+                      Previous
+                    </Button>
+                  </Link>
+                )}
+                <span className="text-sm text-gray-600">
+                  Page {currentPage} of {totalPages}
+                </span>
+                {hasMore && (
+                  <Link href={`/points-history?days=${daysFilter}&page=${currentPage + 1}`}>
+                    <Button variant="outline" size="sm">
+                      Next
+                    </Button>
+                  </Link>
+                )}
+              </div>
+            )}
+          </>
           ) : (
             <EmptyState
               icon={

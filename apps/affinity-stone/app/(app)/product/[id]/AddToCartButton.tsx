@@ -32,6 +32,8 @@ interface Variant {
   size?: string;
   color?: string;
   price_adjustment_usd: number;
+  inventory_count?: number;
+  image_url?: string;
 }
 
 interface AddToCartButtonProps {
@@ -40,6 +42,7 @@ interface AddToCartButtonProps {
   variants: Variant[];
   basePoints: number;
   conversionRate: number;
+  onColorChange?: (color: string | undefined) => void;
 }
 
 export default function AddToCartButton({
@@ -48,11 +51,20 @@ export default function AddToCartButton({
   variants,
   basePoints,
   conversionRate,
+  onColorChange,
 }: AddToCartButtonProps) {
   const [selectedColor, setSelectedColor] = useState<string | undefined>();
   const [selectedSize, setSelectedSize] = useState<string | undefined>();
   const [quantity, setQuantity] = useState(1);
   const [added, setAdded] = useState(false);
+  
+  // Notify parent when color changes
+  const handleColorChange = (color: string) => {
+    setSelectedColor(color);
+    if (onColorChange) {
+      onColorChange(color);
+    }
+  };
 
   const hasVariants = variants && variants.length > 0;
   
@@ -67,16 +79,34 @@ export default function AddToCartButton({
   const hasColors = availableColors.length > 0;
   const hasSizes = availableSizes.length > 0;
   
-  // Find the matching variant based on selected color and size
-  const selectedVariantId = hasVariants
-    ? variants.find(v => 
-        (!hasColors || v.color === selectedColor) &&
-        (!hasSizes || v.size === selectedSize)
-      )?.id
+  // Find the matching variant combination
+  const selectedVariant = hasVariants
+    ? variants.find(v => {
+        // For combination variants (both size and color exist in DB)
+        if (hasColors && hasSizes) {
+          return v.size === selectedSize && v.color === selectedColor;
+        }
+        // For single-dimension variants
+        if (hasColors && !hasSizes) {
+          return v.color === selectedColor;
+        }
+        if (hasSizes && !hasColors) {
+          return v.size === selectedSize;
+        }
+        return false;
+      })
     : undefined;
   
+  const selectedVariantId = selectedVariant?.id;
+  
+  // Check if selected combination is in stock
+  const isOutOfStock = selectedVariant && 
+    selectedVariant.inventory_count !== null && 
+    selectedVariant.inventory_count !== undefined && 
+    selectedVariant.inventory_count < 1;
+  
   const canAddToCart = !hasVariants || 
-    ((!hasColors || selectedColor) && (!hasSizes || selectedSize));
+    ((!hasColors || selectedColor) && (!hasSizes || selectedSize) && !isOutOfStock);
 
   const handleAddToCart = () => {
     if (!canAddToCart) return;
@@ -90,12 +120,25 @@ export default function AddToCartButton({
     }, 3000);
   };
 
-  const selectedVariant = selectedVariantId
-    ? variants.find((v) => v.id === selectedVariantId)
-    : undefined;
-
-  // All variants use the same base price
-  const finalPoints = basePoints;
+  // Calculate final points including variant adjustment
+  const variantAdjustment = selectedVariant 
+    ? Math.round(selectedVariant.price_adjustment_usd * conversionRate) 
+    : 0;
+  const finalPoints = basePoints + variantAdjustment;
+  
+  // Get availability message
+  const getAvailabilityMessage = () => {
+    if (isOutOfStock) {
+      return 'This combination is out of stock';
+    }
+    if (!canAddToCart && hasColors && !selectedColor) {
+      return 'Please select a color';
+    }
+    if (!canAddToCart && hasSizes && !selectedSize) {
+      return 'Please select a size';
+    }
+    return '';
+  };
 
   if (added) {
     return (
@@ -139,7 +182,7 @@ export default function AddToCartButton({
               return (
                 <button
                   key={color}
-                  onClick={() => setSelectedColor(color)}
+                  onClick={() => handleColorChange(color)}
                   className={`relative w-12 h-12 rounded-full transition-all ${
                     isSelected ? 'ring-4 ring-primary ring-offset-2 scale-110' : 'hover:scale-105'
                   } ${needsBorder ? 'border-2 border-gray-300' : ''}`}
@@ -238,12 +281,19 @@ export default function AddToCartButton({
           onClick={handleAddToCart}
           disabled={!canAddToCart}
         >
-          {!canAddToCart ? (
+          {isOutOfStock ? (
+            <span className="flex items-center gap-2">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+              Out of Stock
+            </span>
+          ) : !canAddToCart ? (
             <span className="flex items-center gap-2">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
               </svg>
-              Please select {!selectedColor && hasColors ? 'a color' : ''}{!selectedColor && !selectedSize && hasColors && hasSizes ? ' and ' : ''}{!selectedSize && hasSizes ? 'a size' : ''}
+              {getAvailabilityMessage()}
             </span>
           ) : (
             <span className="flex items-center justify-center gap-2">

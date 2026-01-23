@@ -3,7 +3,9 @@
 import { createClient } from '@/lib/supabase/server';
 import { getCurrentUser } from '@/lib/auth/get-user';
 import { revalidatePath } from 'next/cache';
-import type { Cart } from '@/lib/cart/types';
+import type { Cart, CartItem } from '@/lib/cart/types';
+import { sendEmail, getAdminEmails } from '@/lib/email/resend';
+import { customerOrderConfirmationEmail, adminNewOrderEmail } from '@/lib/email/templates';
 
 interface PlaceOrderResult {
   success: boolean;
@@ -13,6 +15,17 @@ interface PlaceOrderResult {
 
 export async function placeOrder(formData: FormData): Promise<PlaceOrderResult> {
   try {
+    // Check if using placeholder Supabase (dev mode)
+    const isDevMode = !process.env.NEXT_PUBLIC_SUPABASE_URL || 
+                      process.env.NEXT_PUBLIC_SUPABASE_URL.includes('placeholder');
+    
+    if (isDevMode) {
+      return { 
+        success: false, 
+        error: 'Order placement requires Supabase to be configured. Please set up your Supabase project and credentials.' 
+      };
+    }
+
     // Get current user
     const user = await getCurrentUser();
     if (!user) {
@@ -27,6 +40,28 @@ export async function placeOrder(formData: FormData): Promise<PlaceOrderResult> 
       return { success: false, error: 'Cart is empty' };
     }
 
+    // Normalize and validate cart items
+    // Merge duplicates by (productId, variantId) and reject invalid quantities
+    const normalizedItems = new Map<string, CartItem>();
+    for (const item of cart.items) {
+      if (!item.productId || item.quantity <= 0) {
+        continue; // Skip invalid items
+      }
+      
+      const key = `${item.productId}-${item.variantId || 'null'}`;
+      const existing = normalizedItems.get(key);
+      
+      if (existing) {
+        existing.quantity += item.quantity;
+      } else {
+        normalizedItems.set(key, { ...item });
+      }
+    }
+
+    if (normalizedItems.size === 0) {
+      return { success: false, error: 'Cart is empty or contains only invalid items' };
+    }
+
     // Get delivery method
     const deliveryMethod = formData.get('deliveryMethod') as string;
     if (!deliveryMethod || !['pickup', 'delivery'].includes(deliveryMethod)) {
@@ -36,7 +71,7 @@ export async function placeOrder(formData: FormData): Promise<PlaceOrderResult> 
     // Get shipping info (only required for delivery)
     const shipName = formData.get('shipName') as string;
     const shipAddressLine1 = formData.get('shipAddressLine1') as string;
-    const shipAddressLine2 = (formData.get('shipAddressLine2') as string) || '';
+    const shipAddressLine2 = (formData.get('shipAddressLine2') as string) || null;
     const shipCity = formData.get('shipCity') as string;
     const shipState = formData.get('shipState') as string;
     const shipZip = formData.get('shipZip') as string;
@@ -51,167 +86,93 @@ export async function placeOrder(formData: FormData): Promise<PlaceOrderResult> 
 
     const supabase = await createClient();
 
-    // Get store conversion rate
-    const { data: settings } = await supabase
-      .from('store_settings')
-      .select('usd_to_points_rate')
-      .single();
-
-    const conversionRate = settings?.usd_to_points_rate || 100;
-
-    // Fetch all products and variants in the cart
-    const productIds = cart.items.map((item) => item.productId);
-    const { data: products } = await supabase
-      .from('products')
-      .select('*')
-      .in('id', productIds)
-      .eq('active', true);
-
-    if (!products || products.length === 0) {
-      return { success: false, error: 'No valid products found' };
-    }
-
-    const variantIds = cart.items.filter((item) => item.variantId).map((item) => item.variantId!);
-    let variants: any[] = [];
-    if (variantIds.length > 0) {
-      const { data: vars } = await supabase
-        .from('product_variants')
-        .select('*')
-        .in('id', variantIds)
-        .eq('active', true);
-      variants = vars || [];
-    }
-
-    // Calculate total points and prepare order items
-    let totalPoints = 0;
-    const orderItems = [];
-
-    for (const cartItem of cart.items) {
-      const product = products.find((p) => p.id === cartItem.productId);
-      if (!product) {
-        return { success: false, error: `Product ${cartItem.productId} not found or inactive` };
-      }
-
-      let variant = null;
-      if (cartItem.variantId) {
-        variant = variants.find((v) => v.id === cartItem.variantId);
-        if (!variant) {
-          return { success: false, error: `Variant ${cartItem.variantId} not found or inactive` };
-        }
-      }
-
-      const basePoints = Math.round(product.base_usd * conversionRate);
-      const variantAdjustment = variant ? Math.round(variant.price_adjustment_usd * conversionRate) : 0;
-      const pointsPerItem = basePoints + variantAdjustment;
-      const itemTotalPoints = pointsPerItem * cartItem.quantity;
-
-      totalPoints += itemTotalPoints;
-
-      orderItems.push({
-        product_id: product.id,
-        variant_id: variant?.id || null,
-        product_name: product.name,
-        variant_name: variant?.name || null,
-        quantity: cartItem.quantity,
-        points_per_item: pointsPerItem,
-        total_points: itemTotalPoints,
-      });
-    }
-
-    // Check user's points balance
-    const { data: balance } = await supabase.rpc('get_user_points_balance', {
-      p_user_id: user.id,
-    });
-
-    const currentBalance = balance || 0;
-    if (currentBalance < totalPoints) {
-      return {
-        success: false,
-        error: `Insufficient points. You have ${currentBalance} points but need ${totalPoints} points.`,
-      };
-    }
-
-    // Create the order
-    const orderData: any = {
-      user_id: user.id,
-      status: 'new',
-      total_points: totalPoints,
-      delivery_method: deliveryMethod,
-    };
-
-    // Set shipping fields - required for delivery, null for pickup
-    if (deliveryMethod === 'delivery') {
-      orderData.ship_name = shipName;
-      orderData.ship_address_line1 = shipAddressLine1;
-      orderData.ship_address_line2 = shipAddressLine2 || null;
-      orderData.ship_city = shipCity;
-      orderData.ship_state = shipState;
-      orderData.ship_zip = shipZip;
-      orderData.ship_country = shipCountry;
-    } else {
-      // Explicitly set to null for pickup orders
-      orderData.ship_name = null;
-      orderData.ship_address_line1 = null;
-      orderData.ship_address_line2 = null;
-      orderData.ship_city = null;
-      orderData.ship_state = null;
-      orderData.ship_zip = null;
-      orderData.ship_country = null;
-    }
-
-    const { data: order, error: orderError } = await supabase
-      .from('orders')
-      .insert(orderData)
-      .select()
-      .single();
-
-    if (orderError || !order) {
-      console.error('Order creation error:', orderError);
-      return { success: false, error: 'Failed to create order' };
-    }
-
-    // Insert order items
-    const itemsToInsert = orderItems.map((item) => ({
-      ...item,
-      order_id: order.id,
+    // Prepare items for RPC call
+    const items = Array.from(normalizedItems.values()).map((item) => ({
+      product_id: item.productId,
+      variant_id: item.variantId || null,
+      quantity: item.quantity,
     }));
 
-    const { error: itemsError } = await supabase
-      .from('order_items')
-      .insert(itemsToInsert);
+    // Call the transactional RPC to place the order
+    const { data: orderId, error: rpcError } = await supabase.rpc('place_points_order', {
+      p_items: items,
+      p_delivery_method: deliveryMethod,
+      p_ship_name: deliveryMethod === 'delivery' ? shipName : null,
+      p_ship_address_line1: deliveryMethod === 'delivery' ? shipAddressLine1 : null,
+      p_ship_address_line2: deliveryMethod === 'delivery' ? shipAddressLine2 : null,
+      p_ship_city: deliveryMethod === 'delivery' ? shipCity : null,
+      p_ship_state: deliveryMethod === 'delivery' ? shipState : null,
+      p_ship_zip: deliveryMethod === 'delivery' ? shipZip : null,
+      p_ship_country: deliveryMethod === 'delivery' ? shipCountry : null,
+    });
 
-    if (itemsError) {
-      console.error('Order items creation error:', itemsError);
-      // Attempt to clean up the order
-      await supabase.from('orders').delete().eq('id', order.id);
-      return { success: false, error: 'Failed to create order items' };
+    if (rpcError) {
+      console.error('Order placement error:', rpcError);
+      // Return user-friendly error messages
+      if (rpcError.message.includes('Insufficient points')) {
+        return { success: false, error: rpcError.message };
+      } else if (rpcError.message.includes('not found or inactive')) {
+        return { success: false, error: 'One or more items in your cart are no longer available' };
+      } else if (rpcError.message.includes('does not belong to product')) {
+        return { success: false, error: 'Invalid product variant selected' };
+      } else {
+        return { success: false, error: 'Failed to place order. Please try again.' };
+      }
     }
 
-    // Deduct points from user's balance via points_ledger
-    const { error: pointsError } = await supabase
-      .from('points_ledger')
-      .insert({
-        user_id: user.id,
-        delta_points: -totalPoints,
-        reason: `Order #${order.id.slice(0, 8).toUpperCase()}`,
-        order_id: order.id,
-        created_by: user.id,
-      });
-
-    if (pointsError) {
-      console.error('Points ledger error:', pointsError);
-      // Note: In production, you might want to roll back the order here
-      // For MVP, we'll let it proceed but log the error
+    if (!orderId) {
+      return { success: false, error: 'Failed to create order' };
     }
 
     // Revalidate affected routes
     revalidatePath('/dashboard');
     revalidatePath('/orders');
-    revalidatePath(`/orders/${order.id}`);
+    revalidatePath(`/orders/${orderId}`);
     revalidatePath('/cart');
     revalidatePath('/points-history');
 
-    return { success: true, orderId: order.id };
+    // Send email notifications (failures should not block order completion)
+    try {
+      // Get order details for email
+      const { data: orderDetails } = await supabase
+        .from('orders')
+        .select('*')
+        .eq('id', orderId)
+        .single();
+      
+      if (orderDetails) {
+        const orderNumber = orderId.slice(0, 8).toUpperCase();
+        const emailData = {
+          orderId: orderId,
+          orderNumber,
+          customerEmail: user.email || '',
+          totalPoints: orderDetails.total_points,
+          itemCount: items.reduce((sum, item) => sum + item.quantity, 0),
+          deliveryMethod: orderDetails.delivery_method,
+          createdAt: orderDetails.created_at,
+        };
+        
+        // Send customer confirmation (don't wait)
+        sendEmail({
+          to: user.email || '',
+          ...customerOrderConfirmationEmail(emailData),
+        }).catch(err => console.error('Failed to send customer email:', err));
+        
+        // Send admin notification (don't wait)
+        const adminEmails = getAdminEmails();
+        if (adminEmails.length > 0) {
+          sendEmail({
+            to: adminEmails,
+            ...adminNewOrderEmail(emailData),
+          }).catch(err => console.error('Failed to send admin email:', err));
+        }
+      }
+    } catch (emailError) {
+      // Log but don't fail the order
+      console.error('Error sending order emails:', emailError);
+    }
+
+    return { success: true, orderId: orderId };
   } catch (error) {
     console.error('Unexpected error in placeOrder:', error);
     return { success: false, error: 'An unexpected error occurred' };

@@ -3,6 +3,7 @@ import { Card, CardHeader, CardContent } from 'core/components/Card';
 import { Button } from 'core/components/Button';
 import Link from 'next/link';
 import ConversionRateEditor from './ConversionRateEditor';
+import { ProductRowActions } from './ProductRowActions';
 
 export default async function AdminProductsPage() {
   // Check if using placeholder Supabase (dev mode)
@@ -57,9 +58,11 @@ export default async function AdminProductsPage() {
           <h1 className="text-3xl font-bold text-gray-900">Products</h1>
           <p className="text-gray-600 mt-1">Manage products and conversion rates</p>
         </div>
-        <Button variant="primary" disabled>
-          Add Product (Coming Soon)
-        </Button>
+        <Link href="/admin/products/new">
+          <Button variant="primary" disabled={isDevMode}>
+            Add Product
+          </Button>
+        </Link>
       </div>
 
       <Card className="mb-6">
@@ -126,9 +129,12 @@ export default async function AdminProductsPage() {
                           </span>
                         </td>
                         <td className="px-4 py-3 text-sm">
-                          <Button variant="outline" size="sm" disabled>
-                            Edit
-                          </Button>
+                          <ProductRowActions 
+                            productId={product.id}
+                            productName={product.name}
+                            isActive={product.active}
+                            isDevMode={isDevMode}
+                          />
                         </td>
                       </tr>
                     );

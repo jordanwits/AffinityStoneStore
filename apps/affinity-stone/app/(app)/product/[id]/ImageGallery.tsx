@@ -1,17 +1,55 @@
 'use client';
 
 import Image from 'next/image';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+
+interface Variant {
+  id: string;
+  color?: string;
+  image_url?: string;
+}
 
 interface ImageGalleryProps {
   images: string[];
   productName: string;
+  variants?: Variant[];
+  selectedColor?: string;
 }
 
-export default function ImageGallery({ images, productName }: ImageGalleryProps) {
+export default function ImageGallery({ images, productName, variants = [], selectedColor }: ImageGalleryProps) {
   const [selectedIndex, setSelectedIndex] = useState(0);
+  
+  // Build complete image array including variant images
+  const allImages = [...images];
+  const colorVariantImages: string[] = [];
+  
+  // Add color variant images that aren't already in the main images array
+  variants.forEach(v => {
+    if (v.image_url && !allImages.includes(v.image_url)) {
+      allImages.push(v.image_url);
+      if (v.color) {
+        colorVariantImages.push(v.image_url);
+      }
+    }
+  });
 
-  if (!images || images.length === 0) {
+  // When color changes, switch to that color's image
+  useEffect(() => {
+    if (selectedColor && variants.length > 0) {
+      const colorVariant = variants.find(v => v.color === selectedColor && v.image_url);
+      if (colorVariant && colorVariant.image_url) {
+        const imageIndex = allImages.indexOf(colorVariant.image_url);
+        if (imageIndex >= 0) {
+          setSelectedIndex(imageIndex);
+        }
+      } else if (images.length > 0) {
+        // No specific image for this color, go back to first product image
+        setSelectedIndex(0);
+      }
+    }
+  }, [selectedColor, variants, allImages, images.length]);
+
+  if (!allImages || allImages.length === 0) {
     return (
       <div className="space-y-4">
         <div className="aspect-square relative bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl overflow-hidden shadow-lg">
@@ -26,11 +64,11 @@ export default function ImageGallery({ images, productName }: ImageGalleryProps)
   }
 
   const handlePrevious = () => {
-    setSelectedIndex((prev) => (prev === 0 ? images.length - 1 : prev - 1));
+    setSelectedIndex((prev) => (prev === 0 ? allImages.length - 1 : prev - 1));
   };
 
   const handleNext = () => {
-    setSelectedIndex((prev) => (prev === images.length - 1 ? 0 : prev + 1));
+    setSelectedIndex((prev) => (prev === allImages.length - 1 ? 0 : prev + 1));
   };
 
   return (
@@ -38,7 +76,7 @@ export default function ImageGallery({ images, productName }: ImageGalleryProps)
       {/* Main Image Display */}
       <div className="aspect-square relative bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl overflow-hidden shadow-lg group">
         <Image
-          src={images[selectedIndex]}
+          src={allImages[selectedIndex]}
           alt={`${productName} - Image ${selectedIndex + 1}`}
           fill
           className="object-cover"
@@ -46,7 +84,7 @@ export default function ImageGallery({ images, productName }: ImageGalleryProps)
         />
         
         {/* Navigation Arrows - Only show if there are multiple images */}
-        {images.length > 1 && (
+        {allImages.length > 1 && (
           <>
             <button
               onClick={handlePrevious}
@@ -69,16 +107,16 @@ export default function ImageGallery({ images, productName }: ImageGalleryProps)
 
             {/* Image Counter */}
             <div className="absolute bottom-4 right-4 bg-black/60 text-white px-3 py-1 rounded-full text-sm font-medium">
-              {selectedIndex + 1} / {images.length}
+              {selectedIndex + 1} / {allImages.length}
             </div>
           </>
         )}
       </div>
 
       {/* Thumbnail Gallery - Only show if there are multiple images */}
-      {images.length > 1 && (
+      {allImages.length > 1 && (
         <div className="grid grid-cols-4 gap-3">
-          {images.map((img, idx) => (
+          {allImages.map((img, idx) => (
             <button
               key={idx}
               onClick={() => setSelectedIndex(idx)}

@@ -7,12 +7,26 @@ import { EmptyState } from 'core/components/EmptyState';
 import { Button } from 'core/components/Button';
 import Link from 'next/link';
 
-export default async function OrdersPage() {
+interface OrdersPageProps {
+  searchParams: Promise<{
+    days?: string;
+    page?: string;
+  }>;
+}
+
+export default async function OrdersPage({ searchParams }: OrdersPageProps) {
+  const params = await searchParams;
+  const daysFilter = parseInt(params.days || '90', 10); // Default to last 90 days
+  const currentPage = parseInt(params.page || '1', 10);
+  const itemsPerPage = 20;
+  
   // Check if using placeholder Supabase (dev mode)
   const isDevMode = !process.env.NEXT_PUBLIC_SUPABASE_URL || 
                     process.env.NEXT_PUBLIC_SUPABASE_URL.includes('placeholder');
   
   let orders: any[] = [];
+  let totalCount = 0;
+  let hasMore = false;
   
   if (isDevMode) {
     // Mock data for dev mode
@@ -21,62 +35,113 @@ export default async function OrdersPage() {
         id: 'mock-order-1',
         total_points: 10000,
         status: 'processing',
-        fulfillment_type: 'shipping',
+        delivery_method: 'delivery',
         created_at: new Date(Date.now() - 2 * 86400000).toISOString(),
         ship_name: 'Demo User',
       },
       {
         id: 'mock-order-2',
         total_points: 2500,
-        status: 'ready',
-        fulfillment_type: 'pickup',
+        status: 'new',
+        delivery_method: 'pickup',
         created_at: new Date(Date.now() - 7 * 86400000).toISOString(),
-        ship_name: 'Demo User',
+        ship_name: null,
       },
       {
         id: 'mock-order-3',
         total_points: 1500,
-        status: 'completed',
-        fulfillment_type: 'shipping',
+        status: 'shipped',
+        delivery_method: 'delivery',
         created_at: new Date(Date.now() - 14 * 86400000).toISOString(),
         ship_name: 'Demo User',
       },
     ];
+    totalCount = 3;
   } else {
     const supabase = await createClient();
     const user = await getCurrentUser();
 
     if (!user) return null;
 
+    // Calculate date cutoff
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - daysFilter);
+    
+    // Get total count for pagination
+    const { count } = await supabase
+      .from('orders')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', user.id)
+      .gte('created_at', cutoffDate.toISOString());
+    
+    totalCount = count || 0;
+    hasMore = totalCount > currentPage * itemsPerPage;
+
+    // Get paginated orders with date filter
     const { data } = await supabase
       .from('orders')
       .select('*')
       .eq('user_id', user.id)
-      .order('created_at', { ascending: false });
+      .gte('created_at', cutoffDate.toISOString())
+      .order('created_at', { ascending: false })
+      .range((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage - 1);
     
     orders = data || [];
   }
 
   const getStatusVariant = (status: string) => {
     switch (status) {
-      case 'completed': return 'success';
-      case 'ready': return 'info';
+      case 'delivered': return 'success';
+      case 'shipped': return 'info';
       case 'processing': return 'warning';
-      case 'pending': return 'default';
+      case 'new': return 'default';
+      case 'cancelled': return 'error';
       default: return 'default';
     }
   };
+
+  const totalPages = Math.ceil(totalCount / itemsPerPage);
 
   return (
     <div>
       <PageHeader 
         title="My Orders" 
-        subtitle={orders.length > 0 ? `${orders.length} ${orders.length === 1 ? 'order' : 'orders'} total` : 'Track your redemptions'}
+        subtitle={totalCount > 0 ? `${totalCount} ${totalCount === 1 ? 'order' : 'orders'} in last ${daysFilter} days` : 'Track your redemptions'}
       />
 
+      {/* Date filter controls */}
+      <div className="mb-6 flex flex-wrap gap-2">
+        <Link href={`/orders?days=30&page=1`}>
+          <Button variant={daysFilter === 30 ? 'primary' : 'outline'} size="sm">
+            Last 30 days
+          </Button>
+        </Link>
+        <Link href={`/orders?days=90&page=1`}>
+          <Button variant={daysFilter === 90 ? 'primary' : 'outline'} size="sm">
+            Last 90 days
+          </Button>
+        </Link>
+        <Link href={`/orders?days=180&page=1`}>
+          <Button variant={daysFilter === 180 ? 'primary' : 'outline'} size="sm">
+            Last 6 months
+          </Button>
+        </Link>
+        <Link href={`/orders?days=365&page=1`}>
+          <Button variant={daysFilter === 365 ? 'primary' : 'outline'} size="sm">
+            Last year
+          </Button>
+        </Link>
+        <Link href={`/orders?days=9999&page=1`}>
+          <Button variant={daysFilter === 9999 ? 'primary' : 'outline'} size="sm">
+            All time
+          </Button>
+        </Link>
+      </div>
+
       {orders && orders.length > 0 ? (
-        <div className="grid grid-cols-1 gap-4">
-          {orders.map((order) => (
+        <>
+          <div className="grid grid-cols-1 gap-4">
+            {orders.map((order) => (
             <Link key={order.id} href={`/orders/${order.id}`}>
               <Card className="group hover:shadow-xl transition-all duration-200 cursor-pointer border-2 border-transparent hover:border-primary/20">
                 <CardContent className="p-6">
@@ -107,7 +172,7 @@ export default async function OrdersPage() {
                           })}
                         </div>
                         <div className="flex items-center gap-2">
-                          {order.fulfillment_type === 'shipping' ? (
+                          {order.delivery_method === 'delivery' ? (
                             <>
                               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
@@ -117,9 +182,10 @@ export default async function OrdersPage() {
                           ) : (
                             <>
                               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
                               </svg>
-                              <span>Pickup by: {order.ship_name}</span>
+                              <span>Pickup</span>
                             </>
                           )}
                         </div>
@@ -138,6 +204,30 @@ export default async function OrdersPage() {
             </Link>
           ))}
         </div>
+
+        {/* Pagination controls */}
+        {totalPages > 1 && (
+          <div className="mt-6 flex items-center justify-center gap-2">
+            {currentPage > 1 && (
+              <Link href={`/orders?days=${daysFilter}&page=${currentPage - 1}`}>
+                <Button variant="outline" size="sm">
+                  Previous
+                </Button>
+              </Link>
+            )}
+            <span className="text-sm text-gray-600">
+              Page {currentPage} of {totalPages}
+            </span>
+            {hasMore && (
+              <Link href={`/orders?days=${daysFilter}&page=${currentPage + 1}`}>
+                <Button variant="outline" size="sm">
+                  Next
+                </Button>
+              </Link>
+            )}
+          </div>
+        )}
+      </>
       ) : (
         <Card>
           <CardContent>
