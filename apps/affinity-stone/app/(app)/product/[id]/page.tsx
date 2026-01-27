@@ -1,4 +1,3 @@
-import { createClient } from '@/lib/supabase/server';
 import { Card, CardContent } from 'core/components/Card';
 import { Badge } from 'core/components/Badge';
 import { BackButton } from 'core/components/BackButton';
@@ -7,6 +6,10 @@ import { notFound } from 'next/navigation';
 import AddToCartButton from './AddToCartButton';
 import ImageGallery from './ImageGallery';
 import ProductPageClient from './ProductPageClient';
+import { getStoreSettings, getProductWithVariants } from '@/lib/cache/store-data';
+
+// Cache product pages for 5 minutes (products don't change often)
+export const revalidate = 300;
 
 export default async function ProductDetailPage({
   params,
@@ -92,33 +95,15 @@ export default async function ProductDetailPage({
       ];
     }
   } else {
-    const supabase = await createClient();
+    // Fetch store settings and product data in parallel for faster loading
+    const [settings, productData] = await Promise.all([
+      getStoreSettings(),
+      getProductWithVariants(id),
+    ]);
 
-    // Get store settings for conversion rate
-    const { data: settings } = await supabase
-      .from('store_settings')
-      .select('usd_to_points_rate')
-      .single();
-
-    conversionRate = settings?.usd_to_points_rate || 100;
-
-    // Get product details
-    const { data: prod } = await supabase
-      .from('products')
-      .select('*')
-      .eq('id', id)
-      .single();
-
-    product = prod;
-
-    // Get product variants
-    const { data: vars } = await supabase
-      .from('product_variants')
-      .select('*')
-      .eq('product_id', id)
-      .eq('active', true);
-
-    variants = vars || [];
+    conversionRate = settings.conversionRate;
+    product = productData.product;
+    variants = productData.variants;
   }
 
   if (!product) {

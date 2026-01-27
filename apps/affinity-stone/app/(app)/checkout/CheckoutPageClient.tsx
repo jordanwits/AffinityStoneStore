@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Card, CardHeader, CardContent } from 'core/components/Card';
 import { PageHeader } from 'core/components/PageHeader';
 import { Alert } from 'core/components/Alert';
@@ -14,29 +14,33 @@ import { useRouter } from 'next/navigation';
 import { getCart, clearCart } from '@/lib/cart/storage';
 import type { CartItemWithDetails } from '@/lib/cart/types';
 import Image from 'next/image';
+import { getCheckoutData } from './actions';
 
 interface CheckoutPageClientProps {
   isDevMode: boolean;
-  conversionRate: number;
-  products: any[];
-  variants: any[];
-  pointsBalance: number;
   placeOrder: (formData: FormData) => Promise<{ success: boolean; orderId?: string; error?: string }>;
 }
 
+// Mock data for dev mode
+const mockProducts = [
+  { id: '1', name: 'Company Logo T-Shirt', base_usd: 25.00, images: ['/ChrisCrossBlackCottonT-Shirt.webp'] },
+  { id: '2', name: 'Insulated Water Bottle', base_usd: 35.00, images: ['/KiyoUVC-Bottle_Studio_Fullsize-500ml_Black_C2_4480x.jpg'] },
+  { id: '3', name: 'Laptop Backpack', base_usd: 75.00, images: ['/1200W-18684-Black-0-NKDH7709BlackBagFront3.jpg'] },
+  { id: '4', name: 'Wireless Mouse', base_usd: 45.00, images: ['/b43457a0-76b6-11f0-9faf-5258f188704a.png'] },
+  { id: '5', name: 'Notebook Set', base_usd: 20.00, images: ['/moleskine-classic-hardcover-notebook-black.webp'] },
+];
+
 export default function CheckoutPageClient({
   isDevMode,
-  conversionRate,
-  products,
-  variants,
-  pointsBalance,
   placeOrder,
 }: CheckoutPageClientProps) {
   const router = useRouter();
   const [cartItems, setCartItems] = useState<CartItemWithDetails[]>([]);
+  const [pointsBalance, setPointsBalance] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [currentStep, setCurrentStep] = useState<1 | 2>(1);
 
   // Form state
   const [deliveryMethod, setDeliveryMethod] = useState<'pickup' | 'delivery'>('delivery');
@@ -48,17 +52,31 @@ export default function CheckoutPageClient({
   const [shipZip, setShipZip] = useState('');
   const [shipCountry, setShipCountry] = useState('US');
 
-  useEffect(() => {
-    loadCart();
-  }, []);
-
-  const loadCart = () => {
+  const loadCart = useCallback(async () => {
     const cart = getCart();
     
     if (cart.items.length === 0) {
       router.push('/cart');
       return;
     }
+
+    let products: any[] = [];
+    let variants: any[] = [];
+    let conversionRate = 100;
+    let balance = 2500; // Default for dev mode
+
+    if (isDevMode) {
+      products = mockProducts;
+    } else {
+      // Fetch only the products in the cart via server action - much faster!
+      const data = await getCheckoutData(cart.items);
+      products = data.products;
+      variants = data.variants;
+      conversionRate = data.conversionRate;
+      balance = data.pointsBalance;
+    }
+
+    setPointsBalance(balance);
 
     // Enrich cart items with product/variant details
     const enriched: CartItemWithDetails[] = cart.items.map((item) => {
@@ -94,11 +112,31 @@ export default function CheckoutPageClient({
 
     setCartItems(enriched);
     setIsLoading(false);
-  };
+  }, [isDevMode, router]);
+
+  useEffect(() => {
+    loadCart();
+  }, [loadCart]);
 
   const totalPoints = cartItems.reduce((sum, item) => sum + item.totalPoints, 0);
   const totalItems = cartItems.reduce((sum, item) => sum + item.quantity, 0);
   const hasInsufficientPoints = totalPoints > pointsBalance;
+
+  const handleContinueToReview = () => {
+    setError(null);
+
+    // Validate shipping fields if delivery is selected
+    if (deliveryMethod === 'delivery') {
+      if (!shipName || !shipAddressLine1 || !shipCity || !shipState || !shipZip || !shipCountry) {
+        setError('All shipping fields are required for delivery orders.');
+        return;
+      }
+    }
+
+    // Proceed to review step
+    setCurrentStep(2);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -115,15 +153,6 @@ export default function CheckoutPageClient({
     }
 
     setIsSubmitting(true);
-
-    // Validate shipping fields if delivery is selected
-    if (deliveryMethod === 'delivery') {
-      if (!shipName || !shipAddressLine1 || !shipCity || !shipState || !shipZip || !shipCountry) {
-        setError('All shipping fields are required for delivery orders.');
-        setIsSubmitting(false);
-        return;
-      }
-    }
 
     try {
       // Prepare form data
@@ -183,17 +212,35 @@ export default function CheckoutPageClient({
       <div className="mb-8">
         <div className="flex items-center justify-center gap-4">
           <div className="flex items-center">
-            <div className="flex items-center justify-center w-10 h-10 rounded-full bg-primary text-white font-bold">
-              1
+            <div className={`flex items-center justify-center w-10 h-10 rounded-full font-bold ${
+              currentStep === 1 
+                ? 'bg-secondary text-secondary-foreground' 
+                : 'bg-primary text-white'
+            }`}>
+              {currentStep > 1 ? (
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                </svg>
+              ) : (
+                '1'
+              )}
             </div>
-            <span className="ml-2 text-sm font-medium text-gray-900">Delivery Options</span>
+            <span className={`ml-2 text-sm font-medium ${
+              currentStep === 1 ? 'text-gray-900' : 'text-gray-600'
+            }`}>Delivery Options</span>
           </div>
-          <div className="w-16 h-0.5 bg-gray-300" />
+          <div className={`w-16 h-0.5 ${currentStep >= 2 ? 'bg-secondary' : 'bg-gray-300'}`} />
           <div className="flex items-center">
-            <div className="flex items-center justify-center w-10 h-10 rounded-full bg-gray-200 text-gray-600 font-bold">
+            <div className={`flex items-center justify-center w-10 h-10 rounded-full font-bold ${
+              currentStep === 2 
+                ? 'bg-secondary text-secondary-foreground' 
+                : 'bg-gray-200 text-gray-600'
+            }`}>
               2
             </div>
-            <span className="ml-2 text-sm font-medium text-gray-500">Review</span>
+            <span className={`ml-2 text-sm font-medium ${
+              currentStep === 2 ? 'text-gray-900' : 'text-gray-500'
+            }`}>Review</span>
           </div>
           <div className="w-16 h-0.5 bg-gray-300" />
           <div className="flex items-center">
@@ -205,11 +252,12 @@ export default function CheckoutPageClient({
         </div>
       </div>
 
-      <form onSubmit={handleSubmit}>
+      <form onSubmit={currentStep === 2 ? handleSubmit : (e) => { e.preventDefault(); handleContinueToReview(); }}>
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Delivery Method Selection */}
-          <div className="lg:col-span-2 space-y-6">
-            <Card>
+          {/* Step 1: Delivery Method and Shipping */}
+          {currentStep === 1 && (
+            <div className="lg:col-span-2 space-y-6">
+              <Card>
               <CardHeader className="bg-gray-50">
                 <div className="flex items-center gap-2">
                   <svg className="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -406,9 +454,73 @@ export default function CheckoutPageClient({
                 </CardContent>
               </Card>
             )}
+            </div>
+          )}
 
-            {/* Order Items */}
-            <Card>
+          {/* Step 2: Review */}
+          {currentStep === 2 && (
+            <div className="lg:col-span-2 space-y-6">
+              {/* Delivery Information Summary */}
+              <Card>
+                <CardHeader className="bg-gray-50">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <svg className="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      <h2 className="text-lg font-semibold text-gray-900">Delivery Information</h2>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => { setCurrentStep(1); setError(null); }}
+                      className="text-sm text-secondary hover:text-secondary/80 font-medium underline"
+                    >
+                      Edit
+                    </button>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    <div>
+                      <p className="text-sm font-semibold text-gray-700 mb-1">Delivery Method</p>
+                      <p className="text-base text-gray-900 flex items-center gap-2">
+                        {deliveryMethod === 'pickup' ? (
+                          <>
+                            <svg className="w-5 h-5 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                            </svg>
+                            Pickup at store location
+                          </>
+                        ) : (
+                          <>
+                            <svg className="w-5 h-5 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+                            </svg>
+                            Delivery to address
+                          </>
+                        )}
+                      </p>
+                    </div>
+
+                    {deliveryMethod === 'delivery' && (
+                      <div className="pt-3 border-t">
+                        <p className="text-sm font-semibold text-gray-700 mb-2">Shipping Address</p>
+                        <div className="text-base text-gray-900 space-y-1">
+                          <p>{shipName}</p>
+                          <p>{shipAddressLine1}</p>
+                          {shipAddressLine2 && <p>{shipAddressLine2}</p>}
+                          <p>{shipCity}, {shipState} {shipZip}</p>
+                          <p>{shipCountry}</p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Order Items */}
+              <Card>
               <CardHeader className="bg-gray-50">
                 <div className="flex items-center gap-2">
                   <svg className="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -431,7 +543,7 @@ export default function CheckoutPageClient({
                             alt={item.productName}
                             width={64}
                             height={64}
-                            className="object-cover w-full h-full"
+                            className="object-cover object-[center_30%] w-full h-full"
                           />
                         ) : (
                           <div className="w-full h-full flex items-center justify-center text-gray-600 text-xs">
@@ -455,7 +567,8 @@ export default function CheckoutPageClient({
                 </div>
               </CardContent>
             </Card>
-          </div>
+            </div>
+          )}
 
           {/* Order Summary Sidebar */}
           <div className="lg:col-span-1">
@@ -478,7 +591,7 @@ export default function CheckoutPageClient({
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-sm font-medium text-gray-700">Order Total</span>
-                    <span className="text-xl font-bold text-primary">
+                    <span className="text-xl font-bold text-secondary">
                       {totalPoints.toLocaleString()} pts
                     </span>
                   </div>
@@ -491,10 +604,10 @@ export default function CheckoutPageClient({
                     </div>
                   )}
                   {!hasInsufficientPoints && (
-                    <div className="mt-3 pt-3 border-t border-blue-300">
+                    <div className="mt-3 pt-3 border-t border-secondary/30">
                       <div className="flex justify-between items-center">
                         <span className="text-sm font-medium text-gray-700">After Purchase</span>
-                        <span className="text-lg font-bold text-green-600">
+                        <span className="text-lg font-bold text-primary">
                           {(pointsBalance - totalPoints).toLocaleString()} pts
                         </span>
                       </div>
@@ -534,38 +647,69 @@ export default function CheckoutPageClient({
 
                 {/* Action Buttons */}
                 <div className="space-y-3 pt-4 border-t">
-                  <Button
-                    type="submit"
-                    variant="primary"
-                    className="w-full h-12 text-base font-semibold"
-                    disabled={isSubmitting || hasInsufficientPoints || isDevMode}
-                  >
-                    {isSubmitting ? (
-                      <span className="flex items-center justify-center gap-2">
-                        <svg className="animate-spin w-5 h-5" fill="none" viewBox="0 0 24 24">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                        </svg>
-                        Processing...
-                      </span>
-                    ) : (
-                      <span className="flex items-center justify-center gap-2">
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                        Place Order ({totalPoints.toLocaleString()} pts)
-                      </span>
-                    )}
-                  </Button>
+                  {currentStep === 1 ? (
+                    <>
+                      <Button
+                        type="submit"
+                        variant="primary"
+                        className="w-full h-12 text-base font-semibold"
+                      >
+                        <span className="flex items-center justify-center gap-2">
+                          Continue to Review
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                          </svg>
+                        </span>
+                      </Button>
 
-                  <Link href="/cart" className="block">
-                    <Button variant="outline" className="w-full">
-                      <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-                      </svg>
-                      Back to Cart
-                    </Button>
-                  </Link>
+                      <Link href="/cart" className="block">
+                        <Button variant="outline" className="w-full">
+                          <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                          </svg>
+                          Back to Cart
+                        </Button>
+                      </Link>
+                    </>
+                  ) : (
+                    <>
+                      <Button
+                        type="submit"
+                        variant="primary"
+                        className="w-full h-12 text-base font-semibold"
+                        disabled={isSubmitting || hasInsufficientPoints || isDevMode}
+                      >
+                        {isSubmitting ? (
+                          <span className="flex items-center justify-center gap-2">
+                            <svg className="animate-spin w-5 h-5" fill="none" viewBox="0 0 24 24">
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                            </svg>
+                            Processing...
+                          </span>
+                        ) : (
+                          <span className="flex items-center justify-center gap-2">
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            Place Order ({totalPoints.toLocaleString()} pts)
+                          </span>
+                        )}
+                      </Button>
+
+                      <Button
+                        type="button"
+                        onClick={() => { setCurrentStep(1); setError(null); }}
+                        variant="outline"
+                        className="w-full"
+                      >
+                        <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                        </svg>
+                        Back to Delivery Options
+                      </Button>
+                    </>
+                  )}
                 </div>
 
                 {/* Trust Badges */}

@@ -46,15 +46,15 @@ export default function ProductPageClient({
           <h1 className="text-3xl lg:text-4xl font-bold text-gray-900 mb-3">{product.name}</h1>
           
           <div className="flex items-baseline gap-3 mb-4">
-            <p className="text-4xl font-bold text-primary">{basePoints.toLocaleString()}</p>
+            <p className="text-4xl font-bold text-secondary">{basePoints.toLocaleString()}</p>
             <span className="text-lg text-gray-600">points</span>
-            <Badge variant="info" size="sm" className="ml-2">
+            <Badge variant="primary" size="sm" className="ml-2">
               ${product.base_usd.toFixed(2)} value
             </Badge>
           </div>
 
           <div className="flex items-center gap-2">
-            <Badge variant="success">In Stock</Badge>
+            <Badge variant="secondary">In Stock</Badge>
             <span className="text-sm text-gray-600">• Usually ships within 3-5 business days</span>
           </div>
         </div>

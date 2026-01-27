@@ -17,7 +17,7 @@ export function Button({
   
   const variantClasses = {
     primary: 'bg-primary text-primary-foreground hover:bg-primary/90 focus:ring-primary/50',
-    secondary: 'bg-gray-300 text-gray-900 hover:bg-gray-400 focus:ring-gray-500',
+    secondary: 'bg-secondary text-secondary-foreground hover:bg-secondary/90 focus:ring-secondary/50',
     outline: 'border-2 border-gray-400 bg-white text-gray-900 hover:bg-gray-50 hover:border-gray-500 focus:ring-primary/50',
     danger: 'bg-red-600 text-white hover:bg-red-700 focus:ring-red-500',
   };

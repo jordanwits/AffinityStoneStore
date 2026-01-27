@@ -21,15 +21,17 @@ export default function BaseLayout({
   branding: BrandingConfig;
 }) {
   return (
-    <html lang="en">
+    <html 
+      lang="en"
+      style={{
+        '--primary': branding.colors.primary,
+        '--primary-foreground': branding.colors.primaryForeground,
+        '--secondary': branding.colors.secondary,
+        '--secondary-foreground': branding.colors.secondaryForeground,
+      } as React.CSSProperties}
+    >
       <body 
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-        style={{
-          '--primary': branding.colors.primary,
-          '--primary-foreground': branding.colors.primaryForeground,
-          '--secondary': branding.colors.secondary,
-          '--secondary-foreground': branding.colors.secondaryForeground,
-        } as React.CSSProperties}
       >
         <BrandingProvider branding={branding}>
           <DevModeBanner />

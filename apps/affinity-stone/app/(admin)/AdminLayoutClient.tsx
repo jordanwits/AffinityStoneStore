@@ -2,6 +2,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState } from 'react';
+import { BrandMark } from 'core/components/BrandMark';
 
 interface AdminLayoutClientProps {
   children: React.ReactNode;
@@ -89,7 +90,7 @@ export function AdminLayoutClient({ children }: AdminLayoutClientProps) {
       {/* Top Navigation Bar - Matches Store Design */}
       <nav className="bg-white border-b border-gray-300 sticky top-0 z-50 shadow-sm">
         <div className="max-w-[1600px] mx-auto px-3 lg:px-4">
-          <div className="flex justify-between h-14">
+          <div className="flex justify-between h-20">
             <div className="flex items-center space-x-8">
               <button
                 onClick={() => setIsSidebarOpen(!isSidebarOpen)}
@@ -99,8 +100,8 @@ export function AdminLayoutClient({ children }: AdminLayoutClientProps) {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
                 </svg>
               </button>
-              <Link href="/admin" className="text-xl font-bold text-primary hover:underline underline-offset-4 transition-all">
-                Admin Panel
+              <Link href="/admin" className="hover:opacity-80 transition-opacity">
+                <BrandMark showText={false} imageClassName="h-14 w-auto" />
               </Link>
             </div>
             <div className="flex items-center gap-3">

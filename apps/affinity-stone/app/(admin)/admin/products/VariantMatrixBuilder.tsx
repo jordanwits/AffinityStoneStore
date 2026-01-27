@@ -187,7 +187,7 @@ export function VariantMatrixBuilder({ onSave, onCancel, isDevMode, disabled }: 
                       />
                     </div>
                     {uploadingColor === color && (
-                      <span className="text-sm text-blue-600">Uploading...</span>
+                      <span className="text-sm text-primary">Uploading...</span>
                     )}
                     {colorImages[color] && !uploadingColor && (
                       <span className="text-sm text-green-600">✓ Uploaded</span>
@@ -203,7 +203,7 @@ export function VariantMatrixBuilder({ onSave, onCancel, isDevMode, disabled }: 
 
           {/* Summary */}
           {selectedSizes.length > 0 && selectedColors.length > 0 && (
-            <div className="bg-blue-50 border border-blue-200 rounded-md p-4">
+            <div className="bg-primary/5 border border-primary/20 rounded-md p-4">
               <p className="text-sm font-medium text-gray-900">
                 This will create {selectedSizes.length} × {selectedColors.length} ={' '}
                 <span className="text-primary font-bold">{selectedSizes.length * selectedColors.length} combinations</span>
@@ -275,7 +275,7 @@ export function VariantMatrixBuilder({ onSave, onCancel, isDevMode, disabled }: 
                       onChange={(e) => updateCombination(index, 'sku', e.target.value)}
                       disabled={disabled}
                       placeholder="Optional"
-                      className="w-full px-3 py-2 text-sm text-gray-900 placeholder:text-gray-500 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:text-gray-500"
+                      className="w-full px-3 py-2 text-sm text-gray-900 placeholder:text-gray-500 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-primary disabled:bg-gray-100 disabled:text-gray-500"
                     />
                   </td>
                   <td className="px-4 py-3">
@@ -285,7 +285,7 @@ export function VariantMatrixBuilder({ onSave, onCancel, isDevMode, disabled }: 
                       onChange={(e) => updateCombination(index, 'inventory_count', e.target.value ? parseInt(e.target.value) : undefined)}
                       disabled={disabled}
                       placeholder="Unlimited"
-                      className="w-32 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-500 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:text-gray-500"
+                      className="w-32 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-500 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-primary disabled:bg-gray-100 disabled:text-gray-500"
                     />
                   </td>
                   <td className="px-4 py-3">
@@ -296,7 +296,7 @@ export function VariantMatrixBuilder({ onSave, onCancel, isDevMode, disabled }: 
                       onChange={(e) => updateCombination(index, 'price_adjustment_usd', parseFloat(e.target.value) || 0)}
                       disabled={disabled}
                       placeholder="0"
-                      className="w-28 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-500 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:text-gray-500"
+                      className="w-28 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-500 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-primary disabled:bg-gray-100 disabled:text-gray-500"
                     />
                   </td>
                 </tr>

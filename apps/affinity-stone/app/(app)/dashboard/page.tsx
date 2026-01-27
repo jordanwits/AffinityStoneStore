@@ -1,4 +1,4 @@
-﻿import { createClient } from '@/lib/supabase/server';
+import { createClient } from '@/lib/supabase/server';
 import { getCurrentUser } from '@/lib/auth/get-user';
 import { Card, CardContent } from 'core/components/Card';
 import { Badge } from 'core/components/Badge';
@@ -6,6 +6,12 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { StorefrontControls } from './StorefrontControls';
 import { FilterPanel } from './FilterPanel';
+import { getStoreSettings, getFilterMetadata } from '@/lib/cache/store-data';
+
+// Enable aggressive caching: Revalidate this page every 5 minutes
+// This means the page will be statically generated and served from cache
+// Users will see data that's at most 5 minutes old
+export const revalidate = 300;
 
 interface SearchParams {
   q?: string;
@@ -183,21 +189,21 @@ export default async function DashboardPage({
     if (!user) return null;
 
     // Run initial queries in parallel for faster loading
-    const [pointsResult, settingsResult, filtersResult] = await Promise.all([
+    // Using cached functions for settings and filters (data that rarely changes)
+    const [pointsResult, settings, filters] = await Promise.all([
       supabase.rpc('get_user_points_balance', { p_user_id: user.id }),
-      supabase.from('store_settings').select('usd_to_points_rate').single(),
-      supabase.rpc('get_filter_metadata'),
+      getStoreSettings(),
+      getFilterMetadata(),
     ]);
 
     pointsBalance = pointsResult.data || 0;
-    conversionRate = settingsResult.data?.usd_to_points_rate || 100;
+    conversionRate = settings.conversionRate;
     
-    // Parse filter metadata
-    const filterData = filtersResult.data as any;
-    allCategories = filterData?.categories || [];
-    allCollections = filterData?.collections || [];
-    allSizes = filterData?.sizes || [];
-    allColors = filterData?.colors || [];
+    // Use cached filter metadata
+    allCategories = filters.categories;
+    allCollections = filters.collections;
+    allSizes = filters.sizes;
+    allColors = filters.colors;
 
     // Build product query with filters
     let query = supabase
@@ -337,12 +343,12 @@ export default async function DashboardPage({
     <div className="flex flex-col lg:flex-row gap-4">
       {/* Left Sidebar - Filters */}
       <aside className="lg:w-52 flex-shrink-0">
-        <div className="sticky top-16 space-y-3">
+        <div className="sticky top-16 pt-4 space-y-3">
           {/* Points Balance Summary */}
-          <div className="border-b pb-3">
-            <p className="text-xs font-semibold text-gray-500 mb-1 uppercase tracking-wide">Your Points</p>
-            <p className="text-3xl font-bold text-gray-900">{pointsBalance.toLocaleString()}</p>
-            <Link href="/points-history" className="text-xs text-gray-600 hover:text-gray-900 font-medium inline-flex items-center gap-1 mt-2 transition-colors">
+          <div className="bg-gradient-to-br from-primary/10 to-secondary/10 rounded-lg py-4 mb-3">
+            <p className="text-xs font-semibold text-gray-600 mb-1 uppercase tracking-wide">Your Points</p>
+            <p className="text-3xl font-bold text-primary">{pointsBalance.toLocaleString()}</p>
+            <Link href="/points-history" className="text-xs text-secondary hover:text-secondary/80 font-bold inline-flex items-center gap-1 mt-2 transition-colors">
               View History
               <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
@@ -410,7 +416,7 @@ export default async function DashboardPage({
               
               return (
                 <Link key={product.id} href={`/product/${product.id}`} className="group">
-                  <div className="relative">
+                  <div className="relative border-2 border-transparent hover:border-secondary/40 rounded-lg p-2 transition-all duration-200">
                     {/* Product Image */}
                     <div className="aspect-square relative bg-gray-50 overflow-hidden mb-3">
                       {product.images && product.images.length > 0 ? (
@@ -418,7 +424,7 @@ export default async function DashboardPage({
                           src={product.images[0]}
                           alt={product.name}
                           fill
-                          className="object-cover transition-transform duration-300 group-hover:scale-105"
+                          className="object-cover object-[center_30%] transition-transform duration-300 group-hover:scale-105"
                         />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center">
@@ -433,7 +439,7 @@ export default async function DashboardPage({
                     <div className="space-y-2">
                       {/* Just In Badge */}
                       {isNew && (
-                        <p className="text-xs font-semibold text-orange-600 uppercase tracking-wide">Just In</p>
+                        <span className="inline-block px-2 py-1 text-xs font-bold text-secondary-foreground bg-secondary rounded uppercase tracking-wide">Just In</span>
                       )}
                       
                       {/* Product Name */}
@@ -447,7 +453,7 @@ export default async function DashboardPage({
                       )}
                       
                       {/* Price */}
-                      <p className="text-base font-semibold text-gray-900 pt-1">
+                      <p className="text-base font-bold text-secondary pt-1">
                         {pointsPrice.toLocaleString()} points
                       </p>
                     </div>

@@ -7,6 +7,9 @@ import { Badge } from 'core/components/Badge';
 import { Button } from 'core/components/Button';
 import Link from 'next/link';
 
+// Cache points history for 2 minutes (points are user-specific and update frequently)
+export const revalidate = 120;
+
 interface PointsHistoryPageProps {
   searchParams: Promise<{
     days?: string;
@@ -69,36 +72,32 @@ export default async function PointsHistoryPage({ searchParams }: PointsHistoryP
 
     if (!user) return null;
 
-    // Get points balance (always full balance)
-    const { data: balance } = await supabase.rpc('get_user_points_balance', {
-      p_user_id: user.id,
-    });
-    pointsBalance = balance || 0;
-
     // Calculate date cutoff
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - daysFilter);
+    const cutoffISO = cutoffDate.toISOString();
 
-    // Get total count for pagination
-    const { count } = await supabase
-      .from('points_ledger')
-      .select('*', { count: 'exact', head: true })
-      .eq('user_id', user.id)
-      .gte('created_at', cutoffDate.toISOString());
-    
-    totalCount = count || 0;
+    // Run all queries in parallel for faster loading
+    const [balanceResult, countResult, historyResult] = await Promise.all([
+      supabase.rpc('get_user_points_balance', { p_user_id: user.id }),
+      supabase
+        .from('points_ledger')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', user.id)
+        .gte('created_at', cutoffISO),
+      supabase
+        .from('points_ledger')
+        .select('*')
+        .eq('user_id', user.id)
+        .gte('created_at', cutoffISO)
+        .order('created_at', { ascending: false })
+        .range((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage - 1),
+    ]);
+
+    pointsBalance = balanceResult.data || 0;
+    totalCount = countResult.count || 0;
     hasMore = totalCount > currentPage * itemsPerPage;
-
-    // Get paginated points history with date filter
-    const { data: historyData } = await supabase
-      .from('points_ledger')
-      .select('*')
-      .eq('user_id', user.id)
-      .gte('created_at', cutoffDate.toISOString())
-      .order('created_at', { ascending: false })
-      .range((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage - 1);
-
-    history = historyData || [];
+    history = historyResult.data || [];
 
     // Calculate totals for the filtered period
     totalEarned = history
@@ -161,7 +160,7 @@ export default async function PointsHistoryPage({ searchParams }: PointsHistoryP
                 </svg>
               </div>
               <p className="text-sm font-medium text-gray-600 mb-2">Current Balance</p>
-              <p className="text-4xl font-bold text-primary">{pointsBalance.toLocaleString()}</p>
+              <p className="text-4xl font-bold text-secondary">{pointsBalance.toLocaleString()}</p>
             </div>
           </CardContent>
         </Card>
@@ -169,13 +168,13 @@ export default async function PointsHistoryPage({ searchParams }: PointsHistoryP
         <Card className="hover:shadow-md transition-shadow">
           <CardContent className="py-8">
             <div className="text-center">
-              <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-green-100 text-green-600 mb-3">
+              <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-secondary/20 text-secondary mb-3">
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 11l5-5m0 0l5 5m-5-5v12" />
                 </svg>
               </div>
               <p className="text-sm font-medium text-gray-600 mb-2">Total Earned</p>
-              <p className="text-4xl font-bold text-green-600">{totalEarned.toLocaleString()}</p>
+              <p className="text-4xl font-bold text-secondary">{totalEarned.toLocaleString()}</p>
             </div>
           </CardContent>
         </Card>
@@ -183,13 +182,13 @@ export default async function PointsHistoryPage({ searchParams }: PointsHistoryP
         <Card className="hover:shadow-md transition-shadow">
           <CardContent className="py-8">
             <div className="text-center">
-              <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-green-100 text-green-600 mb-3">
+              <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-primary/20 text-primary mb-3">
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                 </svg>
               </div>
               <p className="text-sm font-medium text-gray-600 mb-2">Total Redeemed</p>
-              <p className="text-4xl font-bold text-gray-900">{totalSpent.toLocaleString()}</p>
+              <p className="text-4xl font-bold text-primary">{totalSpent.toLocaleString()}</p>
             </div>
           </CardContent>
         </Card>

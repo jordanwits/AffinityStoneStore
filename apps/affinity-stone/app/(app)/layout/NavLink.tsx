@@ -18,8 +18,8 @@ export default function NavLink({ href, children, className = '' }: NavLinkProps
       href={href}
       className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
         isActive
-          ? 'bg-gray-200 text-gray-900'
-          : 'text-gray-700 hover:text-gray-900 hover:bg-gray-100'
+          ? 'bg-primary text-primary-foreground'
+          : 'text-gray-700 hover:text-primary hover:bg-primary/10'
       } ${className}`}
     >
       {children}

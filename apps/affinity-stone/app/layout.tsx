@@ -4,8 +4,8 @@ import { affinityBranding } from "../branding";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Affinity Stone - Rewards Merch Shop",
-  description: "Redeem your Stone Credits for branded merchandise",
+  title: `${affinityBranding.appName} - Rewards Merch Shop`,
+  description: `Redeem your points for branded merchandise at ${affinityBranding.appName}`,
 };
 
 export default function RootLayout({

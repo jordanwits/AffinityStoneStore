@@ -311,7 +311,7 @@ export function VariantManager({ productId, initialVariants, isDevMode, disabled
 
         {/* Add/Edit Form */}
         {(isAdding || editingId) && (
-          <div className="space-y-4 p-4 bg-blue-50 rounded-md border border-blue-200">
+          <div className="space-y-4 p-4 bg-primary/5 rounded-md border border-primary/20">
             <div>
               <h3 className="font-semibold text-gray-900">
                 {editingId ? 'Edit Variant' : 'Add Variant'}
@@ -383,7 +383,7 @@ export function VariantManager({ productId, initialVariants, isDevMode, disabled
                   value={formData.value}
                   onChange={(e) => setFormData({ ...formData, value: e.target.value })}
                   disabled={isDevMode || disabled || loading}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary disabled:bg-gray-100 disabled:cursor-not-allowed"
                 >
                   <option value="">Select size</option>
                   {sizeOptions.map((size) => (
@@ -404,7 +404,7 @@ export function VariantManager({ productId, initialVariants, isDevMode, disabled
                   value={formData.value}
                   onChange={(e) => setFormData({ ...formData, value: e.target.value })}
                   disabled={isDevMode || disabled || loading}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary disabled:bg-gray-100 disabled:cursor-not-allowed"
                 >
                   <option value="">Select color</option>
                   {colorOptions.map((color) => (

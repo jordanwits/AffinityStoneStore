@@ -6,11 +6,49 @@ import { revalidatePath } from 'next/cache';
 import type { Cart, CartItem } from '@/lib/cart/types';
 import { sendEmail, getAdminEmails } from '@/lib/email/resend';
 import { customerOrderConfirmationEmail, adminNewOrderEmail } from '@/lib/email/templates';
+import { getStoreSettings, getProductsByIds, getVariantsByProductIds } from '@/lib/cache/store-data';
 
 interface PlaceOrderResult {
   success: boolean;
   orderId?: string;
   error?: string;
+}
+
+export interface CheckoutData {
+  products: any[];
+  variants: any[];
+  conversionRate: number;
+  pointsBalance: number;
+}
+
+// Fetch checkout data based on cart items - only fetches what's needed
+export async function getCheckoutData(cartItems: { productId: string; variantId?: string; quantity: number }[]): Promise<CheckoutData> {
+  if (cartItems.length === 0) {
+    return { products: [], variants: [], conversionRate: 100, pointsBalance: 0 };
+  }
+
+  const user = await getCurrentUser();
+  if (!user) {
+    return { products: [], variants: [], conversionRate: 100, pointsBalance: 0 };
+  }
+
+  const supabase = await createClient();
+  const productIds = [...new Set(cartItems.map(item => item.productId))];
+  
+  // Fetch all data in parallel for maximum speed
+  const [settings, products, variants, balanceResult] = await Promise.all([
+    getStoreSettings(),
+    getProductsByIds(productIds),
+    getVariantsByProductIds(productIds),
+    supabase.rpc('get_user_points_balance', { p_user_id: user.id }),
+  ]);
+
+  return {
+    products,
+    variants,
+    conversionRate: settings.conversionRate,
+    pointsBalance: balanceResult.data || 0,
+  };
 }
 
 export async function placeOrder(formData: FormData): Promise<PlaceOrderResult> {

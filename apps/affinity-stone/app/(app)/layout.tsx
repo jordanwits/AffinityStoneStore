@@ -1,9 +1,10 @@
-﻿import Link from 'next/link';
+import Link from 'next/link';
 import { getCurrentUser, getUserProfile } from '@/lib/auth/get-user';
 import { redirect } from 'next/navigation';
 import CartIcon from './layout/CartIcon';
 import NavLink from './layout/NavLink';
 import MobileMenu from './layout/MobileMenu';
+import { BrandMark } from 'core/components/BrandMark';
 
 export default async function AppLayout({
   children,
@@ -30,10 +31,10 @@ export default async function AppLayout({
     <div className="min-h-screen bg-gray-50">
       <nav className="bg-white border-b border-gray-300 sticky top-0 z-50 shadow-sm">
         <div className="max-w-[1600px] mx-auto px-3 lg:px-4">
-          <div className="flex justify-between h-14">
+          <div className="flex justify-between h-20">
             <div className="flex items-center space-x-8">
-              <Link href="/dashboard" className="text-xl font-bold text-primary hover:underline underline-offset-4 transition-all">
-                Affinity Stone
+              <Link href="/dashboard" className="hover:opacity-80 transition-opacity">
+                <BrandMark showText={false} imageClassName="h-14 w-auto" />
               </Link>
               <div className="hidden md:flex space-x-1">
                 <NavLink href="/dashboard">Shop</NavLink>

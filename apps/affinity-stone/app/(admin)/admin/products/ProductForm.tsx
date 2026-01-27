@@ -194,7 +194,7 @@ export function ProductForm({ mode, productId, initialData, isDevMode }: Product
               placeholder="Detailed product description..."
               required
               rows={4}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary disabled:bg-gray-100 disabled:cursor-not-allowed"
             />
           </div>
           
@@ -224,7 +224,7 @@ export function ProductForm({ mode, productId, initialData, isDevMode }: Product
               value={category}
               onChange={(e) => setCategory(e.target.value)}
               disabled={isDevMode || loading}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary disabled:bg-gray-100 disabled:cursor-not-allowed"
             >
               <option value="">Select a category</option>
               <option value="Apparel">Apparel</option>
@@ -252,7 +252,8 @@ export function ProductForm({ mode, productId, initialData, isDevMode }: Product
                     checked={selectedCollections.includes(collection)}
                     onChange={() => toggleCollection(collection)}
                     disabled={isDevMode || loading}
-                    className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
+                    className="w-4 h-4 rounded border-gray-300 focus:ring-2 focus:ring-primary disabled:cursor-not-allowed disabled:opacity-50"
+                    style={{ accentColor: 'var(--primary)' }}
                   />
                   <span className={`text-sm ${isDevMode || loading ? 'text-gray-400' : 'text-gray-700 group-hover:text-gray-900'}`}>
                     {collection}
@@ -285,7 +286,7 @@ export function ProductForm({ mode, productId, initialData, isDevMode }: Product
               />
             </div>
             {uploadingImage && (
-              <p className="text-sm text-blue-600 mt-2">Uploading...</p>
+              <p className="text-sm text-primary mt-2">Uploading...</p>
             )}
             {uploadMessage && (
               <p className={`text-sm mt-2 ${uploadMessage.includes('Success') ? 'text-green-600' : 'text-red-600'}`}>
@@ -305,7 +306,7 @@ export function ProductForm({ mode, productId, initialData, isDevMode }: Product
               disabled={isDevMode || loading}
               placeholder="/product-image.jpg&#10;https://your-domain.supabase.co/storage/v1/object/public/products/image.jpg"
               rows={4}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed font-mono text-sm"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary disabled:bg-gray-100 disabled:cursor-not-allowed font-mono text-sm"
             />
             <p className="text-xs text-gray-600 mt-1">One URL per line. Uploaded images appear here automatically, or paste URLs manually</p>
           </div>

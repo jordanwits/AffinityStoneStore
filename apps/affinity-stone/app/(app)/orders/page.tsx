@@ -7,6 +7,9 @@ import { EmptyState } from 'core/components/EmptyState';
 import { Button } from 'core/components/Button';
 import Link from 'next/link';
 
+// Cache orders list for 2 minutes (orders are user-specific and update frequently)
+export const revalidate = 120;
+
 interface OrdersPageProps {
   searchParams: Promise<{
     days?: string;
@@ -66,27 +69,27 @@ export default async function OrdersPage({ searchParams }: OrdersPageProps) {
     // Calculate date cutoff
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - daysFilter);
+    const cutoffISO = cutoffDate.toISOString();
     
-    // Get total count for pagination
-    const { count } = await supabase
-      .from('orders')
-      .select('*', { count: 'exact', head: true })
-      .eq('user_id', user.id)
-      .gte('created_at', cutoffDate.toISOString());
+    // Run count and data queries in parallel for faster loading
+    const [countResult, dataResult] = await Promise.all([
+      supabase
+        .from('orders')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', user.id)
+        .gte('created_at', cutoffISO),
+      supabase
+        .from('orders')
+        .select('*')
+        .eq('user_id', user.id)
+        .gte('created_at', cutoffISO)
+        .order('created_at', { ascending: false })
+        .range((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage - 1),
+    ]);
     
-    totalCount = count || 0;
+    totalCount = countResult.count || 0;
     hasMore = totalCount > currentPage * itemsPerPage;
-
-    // Get paginated orders with date filter
-    const { data } = await supabase
-      .from('orders')
-      .select('*')
-      .eq('user_id', user.id)
-      .gte('created_at', cutoffDate.toISOString())
-      .order('created_at', { ascending: false })
-      .range((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage - 1);
-    
-    orders = data || [];
+    orders = dataResult.data || [];
   }
 
   const getStatusVariant = (status: string) => {
@@ -143,7 +146,7 @@ export default async function OrdersPage({ searchParams }: OrdersPageProps) {
           <div className="grid grid-cols-1 gap-4">
             {orders.map((order) => (
             <Link key={order.id} href={`/orders/${order.id}`}>
-              <Card className="group hover:shadow-xl transition-all duration-200 cursor-pointer border-2 border-transparent hover:border-primary/20">
+              <Card className="group hover:shadow-xl transition-all duration-200 cursor-pointer border-2 border-transparent hover:border-secondary/40">
                 <CardContent className="p-6">
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                     <div className="flex-1">
@@ -156,7 +159,7 @@ export default async function OrdersPage({ searchParams }: OrdersPageProps) {
                         </span>
                       </div>
                       
-                      <p className="text-2xl font-bold text-gray-900 mb-2">
+                      <p className="text-2xl font-bold text-secondary mb-2">
                         {order.total_points.toLocaleString()} <span className="text-base font-normal text-gray-600">points</span>
                       </p>
                       

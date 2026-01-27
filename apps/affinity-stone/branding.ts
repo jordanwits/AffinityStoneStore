@@ -3,10 +3,16 @@ import { BrandingConfig } from 'core/components/BrandingProvider';
 export const affinityBranding: BrandingConfig = {
   appName: 'Affinity Stone Rewards',
   logoText: 'Affinity Stone',
+  logo: {
+    src: '/Affinity Logo.png',
+    alt: 'Affinity Stone',
+    width: 200,
+    height: 200,
+  },
   colors: {
-    primary: '#1e40af', // blue-800
+    primary: '#407FC9',
     primaryForeground: '#ffffff',
-    secondary: '#64748b', // slate-500
+    secondary: '#F2A200',
     secondaryForeground: '#ffffff',
   },
   domain: 'affinity-stone',

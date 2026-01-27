@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { Card, CardHeader, CardContent } from 'core/components/Card';
 import { PageHeader } from 'core/components/PageHeader';
 import { EmptyState } from 'core/components/EmptyState';
@@ -10,25 +10,48 @@ import { Button } from 'core/components/Button';
 import Link from 'next/link';
 import Image from 'next/image';
 import { getCart, updateCartItemQuantity, removeFromCart, clearCart } from '@/lib/cart/storage';
-import type { CartItemWithDetails } from '@/lib/cart/types';
+import type { CartItemWithDetails, CartItem } from '@/lib/cart/types';
+import { getCartProductData } from './actions';
 
 interface CartPageClientProps {
   isDevMode: boolean;
-  conversionRate: number;
-  products: any[];
-  variants: any[];
 }
 
-export default function CartPageClient({ isDevMode, conversionRate, products, variants }: CartPageClientProps) {
+// Mock data for dev mode
+const mockProducts = [
+  { id: '1', name: 'Company Logo T-Shirt', base_usd: 25.00, images: ['/ChrisCrossBlackCottonT-Shirt.webp'] },
+  { id: '2', name: 'Insulated Water Bottle', base_usd: 35.00, images: ['/KiyoUVC-Bottle_Studio_Fullsize-500ml_Black_C2_4480x.jpg'] },
+  { id: '3', name: 'Laptop Backpack', base_usd: 75.00, images: ['/1200W-18684-Black-0-NKDH7709BlackBagFront3.jpg'] },
+  { id: '4', name: 'Wireless Mouse', base_usd: 45.00, images: ['/b43457a0-76b6-11f0-9faf-5258f188704a.png'] },
+  { id: '5', name: 'Notebook Set', base_usd: 20.00, images: ['/moleskine-classic-hardcover-notebook-black.webp'] },
+];
+
+export default function CartPageClient({ isDevMode }: CartPageClientProps) {
   const [cartItems, setCartItems] = useState<CartItemWithDetails[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    loadCart();
-  }, []);
-
-  const loadCart = () => {
+  const loadCart = useCallback(async () => {
     const cart = getCart();
+    
+    if (cart.items.length === 0) {
+      setCartItems([]);
+      setIsLoading(false);
+      return;
+    }
+
+    let products: any[] = [];
+    let variants: any[] = [];
+    let conversionRate = 100;
+
+    if (isDevMode) {
+      products = mockProducts;
+    } else {
+      // Fetch only the products in the cart via server action - much faster!
+      const data = await getCartProductData(cart.items);
+      products = data.products;
+      variants = data.variants;
+      conversionRate = data.conversionRate;
+    }
     
     // Enrich cart items with product/variant details
     const enriched: CartItemWithDetails[] = cart.items.map((item) => {
@@ -65,7 +88,11 @@ export default function CartPageClient({ isDevMode, conversionRate, products, va
 
     setCartItems(enriched);
     setIsLoading(false);
-  };
+  }, [isDevMode]);
+
+  useEffect(() => {
+    loadCart();
+  }, [loadCart]);
 
   const handleUpdateQuantity = (productId: string, variantId: string | undefined, quantity: number) => {
     updateCartItemQuantity(productId, variantId, quantity);
@@ -167,7 +194,7 @@ export default function CartPageClient({ isDevMode, conversionRate, products, va
                         alt={item.productName}
                         width={128}
                         height={128}
-                        className="object-cover w-full h-full"
+                        className="object-cover object-[center_30%] w-full h-full"
                       />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center">
@@ -222,7 +249,7 @@ export default function CartPageClient({ isDevMode, conversionRate, products, va
 
                       {/* Price & Remove */}
                       <div className="text-right">
-                        <p className="text-xl font-bold text-primary">
+                        <p className="text-xl font-bold text-secondary">
                           {item.totalPoints.toLocaleString()} <span className="text-sm">pts</span>
                         </p>
                         <button
@@ -265,7 +292,7 @@ export default function CartPageClient({ isDevMode, conversionRate, products, va
                 <div className="flex justify-between items-baseline mb-6">
                   <span className="text-lg font-semibold text-gray-900">Total</span>
                   <div className="text-right">
-                    <p className="text-3xl font-bold text-primary">
+                    <p className="text-3xl font-bold text-secondary">
                       {totalPoints.toLocaleString()}
                     </p>
                     <p className="text-sm text-gray-500">points</p>

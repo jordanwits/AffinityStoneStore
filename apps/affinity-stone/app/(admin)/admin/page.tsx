@@ -44,15 +44,15 @@ export default async function AdminDashboardPage() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 mb-8">
         <Link href="/admin/users" className="block">
-          <Card className="hover:shadow-lg hover:border-primary transition-all cursor-pointer h-full">
+          <Card className="hover:shadow-lg hover:border-secondary transition-all cursor-pointer h-full border-l-4 border-l-primary">
             <CardContent className="py-6">
               <div className="flex items-start justify-between">
                 <div>
                   <p className="text-sm text-gray-600 mb-1 font-medium">Total Users</p>
-                  <p className="text-3xl font-bold text-gray-900">{usersCount || 0}</p>
+                  <p className="text-3xl font-bold text-primary">{usersCount || 0}</p>
                 </div>
-                <div className="p-3 bg-blue-50 rounded-lg">
-                  <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="p-3 bg-primary/10 rounded-lg">
+                  <svg className="w-6 h-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
                   </svg>
                 </div>
@@ -62,15 +62,15 @@ export default async function AdminDashboardPage() {
         </Link>
 
         <Link href="/admin/products" className="block">
-          <Card className="hover:shadow-lg hover:border-primary transition-all cursor-pointer h-full">
+          <Card className="hover:shadow-lg hover:border-secondary transition-all cursor-pointer h-full border-l-4 border-l-secondary">
             <CardContent className="py-6">
               <div className="flex items-start justify-between">
                 <div>
                   <p className="text-sm text-gray-600 mb-1 font-medium">Active Products</p>
-                  <p className="text-3xl font-bold text-gray-900">{productsCount || 0}</p>
+                  <p className="text-3xl font-bold text-secondary">{productsCount || 0}</p>
                 </div>
-                <div className="p-3 bg-green-50 rounded-lg">
-                  <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="p-3 bg-secondary/10 rounded-lg">
+                  <svg className="w-6 h-6 text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
                   </svg>
                 </div>
@@ -80,15 +80,15 @@ export default async function AdminDashboardPage() {
         </Link>
 
         <Link href="/admin/orders" className="block">
-          <Card className="hover:shadow-lg hover:border-primary transition-all cursor-pointer h-full">
+          <Card className="hover:shadow-lg hover:border-secondary transition-all cursor-pointer h-full border-l-4 border-l-primary">
             <CardContent className="py-6">
               <div className="flex items-start justify-between">
                 <div>
                   <p className="text-sm text-gray-600 mb-1 font-medium">Total Orders</p>
-                  <p className="text-3xl font-bold text-gray-900">{ordersCount || 0}</p>
+                  <p className="text-3xl font-bold text-primary">{ordersCount || 0}</p>
                 </div>
-                <div className="p-3 bg-purple-50 rounded-lg">
-                  <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="p-3 bg-primary/10 rounded-lg">
+                  <svg className="w-6 h-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                   </svg>
                 </div>
@@ -98,15 +98,15 @@ export default async function AdminDashboardPage() {
         </Link>
 
         <Link href="/admin/reports" className="block">
-          <Card className="hover:shadow-lg hover:border-primary transition-all cursor-pointer h-full">
+          <Card className="hover:shadow-lg hover:border-secondary transition-all cursor-pointer h-full border-l-4 border-l-secondary">
             <CardContent className="py-6">
               <div className="flex items-start justify-between">
                 <div>
                   <p className="text-sm text-gray-600 mb-1 font-medium">Reports</p>
-                  <p className="text-lg font-semibold text-gray-900">View Analytics →</p>
+                  <p className="text-lg font-semibold text-secondary">View Analytics →</p>
                 </div>
-                <div className="p-3 bg-gray-100 rounded-lg">
-                  <svg className="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="p-3 bg-secondary/10 rounded-lg">
+                  <svg className="w-6 h-6 text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                   </svg>
                 </div>

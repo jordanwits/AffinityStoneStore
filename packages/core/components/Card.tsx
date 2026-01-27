@@ -31,7 +31,7 @@ export function CardContent({ children, className = '' }: CardProps) {
 
 export function CardFooter({ children, className = '' }: CardProps) {
   return (
-    <div className={`px-6 py-4 border-t border-gray-300 bg-gray-50 rounded-b-lg ${className}`}>
+    <div className={`px-6 py-4 border-t border-gray-300 bg-gradient-to-r from-primary/5 to-secondary/5 rounded-b-lg ${className}`}>
       {children}
     </div>
   );

@@ -79,27 +79,26 @@ export default async function OrderDetailPage({
 
     if (!user) return null;
 
-    // Get order details
-    const { data: orderData } = await supabase
-      .from('orders')
-      .select('*')
-      .eq('id', id)
-      .eq('user_id', user.id)
-      .single();
+    // Run both queries in parallel for faster loading
+    const [orderResult, itemsResult] = await Promise.all([
+      supabase
+        .from('orders')
+        .select('*')
+        .eq('id', id)
+        .eq('user_id', user.id)
+        .single(),
+      supabase
+        .from('order_items')
+        .select('*')
+        .eq('order_id', id),
+    ]);
 
-    if (!orderData) {
+    if (!orderResult.data) {
       notFound();
     }
     
-    order = orderData;
-
-    // Get order items
-    const { data: itemsData } = await supabase
-      .from('order_items')
-      .select('*')
-      .eq('order_id', id);
-    
-    items = itemsData || [];
+    order = orderResult.data;
+    items = itemsResult.data || [];
   }
 
   const getStatusVariant = (status: string) => {
@@ -295,7 +294,7 @@ export default async function OrderDetailPage({
                         src={item.product_image}
                         alt={item.product_name}
                         fill
-                        className="object-cover group-hover:scale-110 transition-transform duration-200"
+                        className="object-cover object-[center_30%] group-hover:scale-110 transition-transform duration-200"
                       />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center">

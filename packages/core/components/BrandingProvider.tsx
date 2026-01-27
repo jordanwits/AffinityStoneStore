@@ -5,6 +5,12 @@ import React, { createContext, useContext } from 'react';
 export interface BrandingConfig {
   appName: string;
   logoText: string;
+  logo?: {
+    src: string;
+    alt: string;
+    width?: number;
+    height?: number;
+  };
   colors: {
     primary: string;
     primaryForeground: string;

@@ -4,6 +4,10 @@ import { Button } from 'core/components/Button';
 import Link from 'next/link';
 import ConversionRateEditor from './ConversionRateEditor';
 import { ProductRowActions } from './ProductRowActions';
+import { getStoreSettings } from '@/lib/cache/store-data';
+
+// Cache admin products page for 2 minutes (admins might make frequent changes)
+export const revalidate = 120;
 
 export default async function AdminProductsPage() {
   // Check if using placeholder Supabase (dev mode)
@@ -16,21 +20,17 @@ export default async function AdminProductsPage() {
   if (!isDevMode) {
     const supabase = await createClient();
 
-    // Get store settings
-    const { data: settings } = await supabase
-      .from('store_settings')
-      .select('usd_to_points_rate')
-      .single();
+    // Run both queries in parallel for faster loading
+    const [settings, productsResult] = await Promise.all([
+      getStoreSettings(),
+      supabase
+        .from('products')
+        .select('*')
+        .order('created_at', { ascending: false }),
+    ]);
 
-    conversionRate = settings?.usd_to_points_rate || 100;
-
-    // Get all products
-    const { data: prods } = await supabase
-      .from('products')
-      .select('*')
-      .order('created_at', { ascending: false });
-    
-    products = prods || [];
+    conversionRate = settings.conversionRate;
+    products = productsResult.data || [];
   } else {
     // Mock data for dev mode
     products = [

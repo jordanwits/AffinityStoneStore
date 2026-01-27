@@ -21,22 +21,25 @@ export default async function AdminOrderDetailPage({
   
   const supabase = await createClient();
 
-  // Get order details with user info
-  const { data: order } = await supabase
-    .from('orders')
-    .select('*, profiles(email, full_name)')
-    .eq('id', id)
-    .single();
+  // Run both queries in parallel for faster loading
+  const [orderResult, itemsResult] = await Promise.all([
+    supabase
+      .from('orders')
+      .select('*, profiles(email, full_name)')
+      .eq('id', id)
+      .single(),
+    supabase
+      .from('order_items')
+      .select('*')
+      .eq('order_id', id),
+  ]);
 
-  if (!order) {
+  if (!orderResult.data) {
     notFound();
   }
 
-  // Get order items
-  const { data: items } = await supabase
-    .from('order_items')
-    .select('*')
-    .eq('order_id', id);
+  const order = orderResult.data;
+  const items = itemsResult.data || [];
 
   return (
     <div className="px-4 py-6 sm:px-0">

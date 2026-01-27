@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/client';
 import { Button } from 'core/components/Button';
 import { Input } from 'core/components/Input';
 import { Card, CardHeader, CardContent } from 'core/components/Card';
+import { BrandMark } from 'core/components/BrandMark';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -42,8 +43,12 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full">
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Affinity Stone</h1>
+        <div className="text-center mb-8 flex flex-col items-center">
+          <BrandMark 
+            textClassName="text-3xl font-bold text-gray-900" 
+            imageClassName="h-16 w-auto"
+            className="mb-2"
+          />
           <p className="mt-2 text-sm text-gray-600">
             Sign in to access your rewards
           </p>

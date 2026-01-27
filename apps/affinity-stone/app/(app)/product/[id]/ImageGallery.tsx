@@ -79,7 +79,7 @@ export default function ImageGallery({ images, productName, variants = [], selec
           src={allImages[selectedIndex]}
           alt={`${productName} - Image ${selectedIndex + 1}`}
           fill
-          className="object-cover"
+          className="object-cover object-[center_30%]"
           priority={selectedIndex === 0}
         />
         
@@ -131,7 +131,7 @@ export default function ImageGallery({ images, productName, variants = [], selec
                 src={img}
                 alt={`${productName} thumbnail ${idx + 1}`}
                 fill
-                className="object-cover"
+                className="object-cover object-[center_30%]"
               />
               {selectedIndex === idx && (
                 <div className="absolute inset-0 bg-primary/10 pointer-events-none" />
