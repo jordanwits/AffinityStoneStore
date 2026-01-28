@@ -45,8 +45,8 @@ export default function LoginPage() {
       <div className="max-w-md w-full">
         <div className="text-center mb-8 flex flex-col items-center">
           <BrandMark 
-            textClassName="text-3xl font-bold text-gray-900" 
-            imageClassName="h-16 w-auto"
+            showText={false}
+            imageClassName="h-24 w-auto"
             className="mb-2"
           />
           <p className="mt-2 text-sm text-gray-600">
@@ -94,6 +94,19 @@ export default function LoginPage() {
               >
                 {loading ? 'Signing in...' : 'Sign In'}
               </Button>
+
+              <div className="text-center text-sm text-gray-600">
+                Don't have an account?{' '}
+                <a href="/request-access" className="text-primary hover:underline font-medium">
+                  Request access
+                </a>
+              </div>
+
+              <div className="text-center">
+                <a href="/home" className="text-sm text-gray-600 hover:text-gray-900">
+                  ← Back to home
+                </a>
+              </div>
             </form>
           </CardContent>
         </Card>

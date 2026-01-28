@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation';
 
-export default async function Home() {
-  redirect('/dashboard');
-  return null;
+// Redirect root to the marketing homepage which has the proper layout
+export default function RootPage() {
+  redirect('/home');
 }
