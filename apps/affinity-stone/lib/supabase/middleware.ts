@@ -49,7 +49,8 @@ export async function updateSession(request: NextRequest) {
 
   const isAuthRoute = request.nextUrl.pathname.startsWith('/login') ||
                       request.nextUrl.pathname.startsWith('/logout') ||
-                      request.nextUrl.pathname.startsWith('/update-password');
+                      request.nextUrl.pathname.startsWith('/update-password') ||
+                      request.nextUrl.pathname.startsWith('/forgot-password');
 
   if (isAppRoute && !user) {
     // Redirect to login if trying to access protected route without auth

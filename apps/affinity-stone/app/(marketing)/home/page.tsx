@@ -92,8 +92,8 @@ export default async function MarketingHomePage() {
           
           <div className="grid md:grid-cols-3 gap-8 lg:gap-12">
             {/* Step 1 */}
-            <div className="relative group">
-              <div className="bg-primary/5 p-8 rounded-2xl border-2 border-primary/20 hover:border-primary/40 transition-all hover:shadow-xl hover:shadow-primary/10">
+            <div className="relative group flex flex-col">
+              <div className="bg-primary/5 p-8 rounded-2xl border-2 border-primary/20 hover:border-primary/40 transition-all hover:shadow-xl hover:shadow-primary/10 h-full flex flex-col">
                 <div className="w-16 h-16 bg-primary rounded-2xl flex items-center justify-center mb-6 shadow-lg shadow-primary/30 group-hover:scale-110 transition-transform">
                   <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -103,7 +103,7 @@ export default async function MarketingHomePage() {
                   <span className="text-sm font-bold text-primary">STEP 1</span>
                 </div>
                 <h3 className="text-2xl font-bold text-gray-900 mb-3">Request Access</h3>
-                <p className="text-gray-600 leading-relaxed">
+                <p className="text-gray-600 leading-relaxed flex-grow">
                   Submit your work email to request access to the company merch shop. Our team will review and approve your request within 24 hours.
                 </p>
               </div>
@@ -112,8 +112,8 @@ export default async function MarketingHomePage() {
             </div>
 
             {/* Step 2 */}
-            <div className="relative group">
-              <div className="bg-secondary/5 p-8 rounded-2xl border-2 border-secondary/20 hover:border-secondary/40 transition-all hover:shadow-xl hover:shadow-secondary/10">
+            <div className="relative group flex flex-col">
+              <div className="bg-secondary/5 p-8 rounded-2xl border-2 border-secondary/20 hover:border-secondary/40 transition-all hover:shadow-xl hover:shadow-secondary/10 h-full flex flex-col">
                 <div className="w-16 h-16 bg-secondary rounded-2xl flex items-center justify-center mb-6 shadow-lg shadow-secondary/30 group-hover:scale-110 transition-transform">
                   <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -123,7 +123,7 @@ export default async function MarketingHomePage() {
                   <span className="text-sm font-bold text-secondary">STEP 2</span>
                 </div>
                 <h3 className="text-2xl font-bold text-gray-900 mb-3">Earn Points</h3>
-                <p className="text-gray-600 leading-relaxed">
+                <p className="text-gray-600 leading-relaxed flex-grow">
                   Earn points through your accomplishments and contributions. Track your balance and see your impact in real-time.
                 </p>
               </div>
@@ -132,8 +132,8 @@ export default async function MarketingHomePage() {
             </div>
 
             {/* Step 3 */}
-            <div className="relative group">
-              <div className="bg-primary/5 p-8 rounded-2xl border-2 border-primary/20 hover:border-primary/40 transition-all hover:shadow-xl hover:shadow-primary/10">
+            <div className="relative group flex flex-col">
+              <div className="bg-primary/5 p-8 rounded-2xl border-2 border-primary/20 hover:border-primary/40 transition-all hover:shadow-xl hover:shadow-primary/10 h-full flex flex-col">
                 <div className="w-16 h-16 bg-primary rounded-2xl flex items-center justify-center mb-6 shadow-lg shadow-primary/30 group-hover:scale-110 transition-transform">
                   <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
@@ -143,7 +143,7 @@ export default async function MarketingHomePage() {
                   <span className="text-sm font-bold text-primary">STEP 3</span>
                 </div>
                 <h3 className="text-2xl font-bold text-gray-900 mb-3">Redeem Rewards</h3>
-                <p className="text-gray-600 leading-relaxed">
+                <p className="text-gray-600 leading-relaxed flex-grow">
                   Browse our catalog of branded company merchandise and redeem your points for items that show your team pride.
                 </p>
               </div>
