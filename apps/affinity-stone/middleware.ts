@@ -1,9 +1,8 @@
 import { type NextRequest } from 'next/server';
 import { updateSession } from './lib/supabase/middleware';
 
-// Use edge runtime for faster execution closer to users
-// This reduces latency by running middleware at edge locations
-export const runtime = 'edge';
+// Middleware automatically runs on Edge Runtime in Next.js 15
+// This provides faster execution closer to users without explicit runtime export
 
 export async function middleware(request: NextRequest) {
   return await updateSession(request);
