@@ -1,16 +1,50 @@
 'use client';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useState } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { BrandMark } from 'core/components/BrandMark';
+import { createClient } from '@/lib/supabase/client';
 
 interface AdminLayoutClientProps {
   children: React.ReactNode;
+  isDevMode: boolean;
 }
 
-export function AdminLayoutClient({ children }: AdminLayoutClientProps) {
+export function AdminLayoutClient({ children, isDevMode }: AdminLayoutClientProps) {
   const pathname = usePathname();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const supabase = useMemo(() => createClient(), []);
+  const [loaded, setLoaded] = useState(false);
+  const [email, setEmail] = useState('');
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function load() {
+      if (isDevMode) {
+        if (cancelled) return;
+        setEmail('demo@affinity.com');
+        setLoaded(true);
+        return;
+      }
+
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (cancelled) return;
+      setEmail(user?.email || '');
+      setLoaded(true);
+    }
+
+    load();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [supabase, isDevMode]);
+
+  const userEmail = isDevMode ? 'demo@affinity.com' : email;
 
   const navigation = [
     { 
@@ -105,9 +139,24 @@ export function AdminLayoutClient({ children }: AdminLayoutClientProps) {
               </Link>
             </div>
             <div className="flex items-center gap-3">
+              {!loaded ? (
+                <span className="text-sm text-gray-500 px-3 py-1.5">Loading…</span>
+              ) : (
+                <>
+                  <span className="text-sm text-gray-600 truncate max-w-[150px] hidden sm:inline">{userEmail}</span>
+                  <form action="/logout" method="POST">
+                    <button
+                      type="submit"
+                      className="text-sm font-medium text-gray-700 hover:text-gray-900 px-3 py-1.5 rounded-md hover:bg-gray-100 transition-colors"
+                    >
+                      Logout
+                    </button>
+                  </form>
+                </>
+              )}
               <Link
                 href="/dashboard"
-                className="text-sm font-medium text-gray-700 hover:text-gray-900 px-3 py-1.5 rounded-md hover:bg-gray-100 transition-colors inline-flex items-center gap-1"
+                className="text-sm font-medium text-gray-700 hover:text-gray-900 px-3 py-1.5 rounded-md hover:bg-gray-100 transition-colors inline-flex items-center gap-1 border-l pl-3 ml-3"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />

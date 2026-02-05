@@ -26,6 +26,7 @@ export default async function AppLayout({
                 <NavLink href="/dashboard">Shop</NavLink>
                 <NavLink href="/orders">Orders</NavLink>
                 <NavLink href="/points-history">Points</NavLink>
+                <NavLink href="/profile">Profile</NavLink>
               </div>
             </div>
             <div className="flex items-center gap-3">

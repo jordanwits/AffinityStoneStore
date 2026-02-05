@@ -4,7 +4,8 @@ import { useState } from 'react';
 import { Button } from 'core/components/Button';
 import { Input } from 'core/components/Input';
 import { Alert } from 'core/components/Alert';
-import { generateMonthlyExport } from './actions';
+import { ChoiceModal } from 'core/components/ChoiceModal';
+import { generateMonthlyExport, generateCombinedExport } from './actions';
 
 interface ExportGeneratorFormProps {
   isDevMode: boolean;
@@ -17,18 +18,41 @@ export function ExportGeneratorForm({ isDevMode }: ExportGeneratorFormProps) {
   const [isGenerating, setIsGenerating] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [progress, setProgress] = useState<string[]>([]);
+  const [showChoiceModal, setShowChoiceModal] = useState(false);
+  const [pendingMonths, setPendingMonths] = useState<{ start: string; end: string } | null>(null);
+
+  const formatMonthName = (month: string): string => {
+    const [year, monthNum] = month.split('-');
+    const monthIndex = parseInt(monthNum, 10) - 1;
+    const monthNames = [
+      'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December'
+    ];
+    return `${monthNames[monthIndex]} ${year}`;
+  };
 
   const getMonthsBetween = (start: string, end: string): string[] => {
     const months: string[] = [];
-    const startDate = new Date(start + '-01');
-    const endDate = new Date(end + '-01');
     
-    const current = new Date(startDate);
-    while (current <= endDate) {
-      const year = current.getFullYear();
-      const month = String(current.getMonth() + 1).padStart(2, '0');
-      months.push(`${year}-${month}`);
-      current.setMonth(current.getMonth() + 1);
+    // Parse start and end months directly without Date objects to avoid timezone issues
+    const [startYear, startMonth] = start.split('-').map(Number);
+    const [endYear, endMonth] = end.split('-').map(Number);
+    
+    let currentYear = startYear;
+    let currentMonth = startMonth;
+    
+    while (
+      currentYear < endYear || 
+      (currentYear === endYear && currentMonth <= endMonth)
+    ) {
+      months.push(`${currentYear}-${String(currentMonth).padStart(2, '0')}`);
+      
+      // Move to next month
+      currentMonth++;
+      if (currentMonth > 12) {
+        currentMonth = 1;
+        currentYear++;
+      }
     }
     
     return months;
@@ -40,32 +64,80 @@ export function ExportGeneratorForm({ isDevMode }: ExportGeneratorFormProps) {
       return;
     }
 
+    // Ensure we have a valid start month
+    if (!startMonth || !/^\d{4}-\d{2}$/.test(startMonth)) {
+      setMessage({ type: 'error', text: 'Invalid start month format. Please select a valid month.' });
+      return;
+    }
+
+    // Normalize and validate month values (month input should already be YYYY-MM format)
+    const normalizedStartMonth = startMonth.trim();
+    const normalizedEndMonth = endMonth?.trim() || '';
+
+    // Validate start month format
+    if (!/^\d{4}-\d{2}$/.test(normalizedStartMonth)) {
+      setMessage({ type: 'error', text: `Invalid start month format: "${normalizedStartMonth}". Expected YYYY-MM format.` });
+      return;
+    }
+
+    // Validate end month format if provided
+    if (normalizedEndMonth && !/^\d{4}-\d{2}$/.test(normalizedEndMonth)) {
+      setMessage({ type: 'error', text: `Invalid end month format: "${normalizedEndMonth}". Expected YYYY-MM format.` });
+      return;
+    }
+
+    const monthsToGenerate = normalizedEndMonth && normalizedEndMonth >= normalizedStartMonth && normalizedEndMonth !== normalizedStartMonth
+      ? getMonthsBetween(normalizedStartMonth, normalizedEndMonth)
+      : [normalizedStartMonth];
+
+    // If multiple months, show choice modal
+    if (monthsToGenerate.length > 1) {
+      setPendingMonths({ start: normalizedStartMonth, end: normalizedEndMonth });
+      setShowChoiceModal(true);
+      return;
+    }
+
+    // Single month - proceed directly
+    await generateIndividualExports([normalizedStartMonth]);
+  };
+
+  const generateIndividualExports = async (months: string[]) => {
     setIsGenerating(true);
     setMessage(null);
     setProgress([]);
 
-    const monthsToGenerate = endMonth && endMonth >= startMonth 
-      ? getMonthsBetween(startMonth, endMonth)
-      : [startMonth];
-
     const results: { month: string; success: boolean; message: string }[] = [];
 
-    for (const month of monthsToGenerate) {
+    for (const month of months) {
       setProgress(prev => [...prev, `Generating ${exportType} for ${month}...`]);
       
-      const result = await generateMonthlyExport(month, exportType);
-      
-      results.push({
-        month,
-        success: result.success,
-        message: result.success ? (result.message || 'Success') : (result.error || 'Failed')
-      });
-      
-      setProgress(prev => [...prev, `✓ ${month}: ${result.success ? 'Success' : result.error || 'Failed'}`]);
+      try {
+        const result = await generateMonthlyExport(month, exportType);
+        
+        results.push({
+          month,
+          success: result.success,
+          message: result.success ? (result.message || 'Success') : (result.error || 'Failed')
+        });
+        
+        setProgress(prev => [...prev, `✓ ${month}: ${result.success ? 'Success' : result.error || 'Failed'}`]);
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Unexpected error occurred';
+        console.error('Error calling generateMonthlyExport:', error);
+        
+        results.push({
+          month,
+          success: false,
+          message: errorMessage
+        });
+        
+        setProgress(prev => [...prev, `✗ ${month}: ${errorMessage}`]);
+      }
     }
 
     const successCount = results.filter(r => r.success).length;
     const failCount = results.filter(r => !r.success).length;
+    const failedResults = results.filter(r => !r.success);
 
     if (failCount === 0) {
       setMessage({ 
@@ -75,13 +147,71 @@ export function ExportGeneratorForm({ isDevMode }: ExportGeneratorFormProps) {
       setStartMonth('');
       setEndMonth('');
     } else {
+      const errorDetails = failedResults.map(r => `${r.month}: ${r.message}`).join('; ');
+      const summaryText = successCount > 0 
+        ? `${successCount} export${successCount > 1 ? 's' : ''} succeeded, ${failCount} failed. `
+        : `All ${failCount} export${failCount > 1 ? 's' : ''} failed. `;
+      
       setMessage({ 
         type: 'error', 
-        text: `Generated ${successCount} exports, ${failCount} failed. See details above.` 
+        text: `${summaryText}Errors: ${errorDetails}` 
       });
     }
 
     setIsGenerating(false);
+  };
+
+  const handleCombinedExport = async (start: string, end: string) => {
+    setIsGenerating(true);
+    setMessage(null);
+    setProgress([]);
+    setShowChoiceModal(false);
+
+    setProgress(prev => [...prev, `Generating combined ${exportType} export from ${start} to ${end}...`]);
+
+    try {
+      const result = await generateCombinedExport(start, end, exportType);
+      
+      if (result.success) {
+        setMessage({ 
+          type: 'success', 
+          text: result.message || 'Successfully generated combined export' 
+        });
+        setStartMonth('');
+        setEndMonth('');
+        setProgress(prev => [...prev, `✓ Combined export: Success`]);
+      } else {
+        setMessage({ 
+          type: 'error', 
+          text: result.error || 'Failed to generate combined export' 
+        });
+        setProgress(prev => [...prev, `✗ Combined export: ${result.error || 'Failed'}`]);
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unexpected error occurred';
+      console.error('Error calling generateCombinedExport:', error);
+      setMessage({ 
+        type: 'error', 
+        text: errorMessage 
+      });
+      setProgress(prev => [...prev, `✗ Combined export: ${errorMessage}`]);
+    }
+
+    setIsGenerating(false);
+    setPendingMonths(null);
+  };
+
+  const handleChoice = async (choice: 'individual' | 'combined') => {
+    if (!pendingMonths) return;
+
+    if (choice === 'individual') {
+      const months = getMonthsBetween(pendingMonths.start, pendingMonths.end);
+      setShowChoiceModal(false);
+      setPendingMonths(null);
+      await generateIndividualExports(months);
+    } else {
+      await handleCombinedExport(pendingMonths.start, pendingMonths.end);
+    }
   };
 
   // Get current month in YYYY-MM format for max date
@@ -180,6 +310,23 @@ export function ExportGeneratorForm({ isDevMode }: ExportGeneratorFormProps) {
           <p className="mt-1">Leave end month empty to generate just one month, or select a range to generate multiple months at once.</p>
         </div>
       </div>
+
+      {pendingMonths && (
+        <ChoiceModal
+          isOpen={showChoiceModal}
+          onClose={() => {
+            setShowChoiceModal(false);
+            setPendingMonths(null);
+          }}
+          onChoice={handleChoice}
+          title="Export Format"
+          message={`You've selected a range of months. How would you like to generate the export?`}
+          individualLabel="Individual Monthly Exports"
+          combinedLabel="Single Combined Export"
+          individualDescription={`Generate separate CSV files for each month (${getMonthsBetween(pendingMonths.start, pendingMonths.end).length} files)`}
+          combinedDescription={`Generate one CSV file containing all data from ${formatMonthName(pendingMonths.start)} to ${formatMonthName(pendingMonths.end)}`}
+        />
+      )}
     </div>
   );
 }

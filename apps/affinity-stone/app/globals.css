@@ -20,7 +20,7 @@
 
 body {
   color: var(--foreground);
-  background: var(--background);
+  background: #f9fafb; /* Match bg-gray-50 */
   font-family: var(--font-geist-sans), system-ui, -apple-system, sans-serif;
 }
 

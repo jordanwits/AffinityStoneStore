@@ -6,6 +6,8 @@ import { EmptyState } from 'core/components/EmptyState';
 import { Badge } from 'core/components/Badge';
 import { Button } from 'core/components/Button';
 import Link from 'next/link';
+import { RecentTransactionsCard } from './RecentTransactionsCard';
+import { HistoryFilters } from './HistoryFilters';
 
 // Cache points history for 2 minutes (points are user-specific and update frequently)
 export const revalidate = 120;
@@ -14,19 +16,46 @@ interface PointsHistoryPageProps {
   searchParams: Promise<{
     days?: string;
     page?: string;
+    startDate?: string;
+    endDate?: string;
+    type?: string;
+    minPoints?: string;
+    maxPoints?: string;
+    reason?: string;
   }>;
 }
 
 export default async function PointsHistoryPage({ searchParams }: PointsHistoryPageProps) {
   const params = await searchParams;
-  const daysFilter = parseInt(params.days || '90', 10); // Default to last 90 days
+  // Default to all time for extended history view if no filters are set
+  const hasAnyFilter = params.days || params.startDate || params.endDate || params.type || params.minPoints || params.maxPoints || params.reason;
+  const daysFilter = params.days ? parseInt(params.days, 10) : (hasAnyFilter ? null : 9999);
   const currentPage = parseInt(params.page || '1', 10);
   const itemsPerPage = 50;
+  
+  // Extract filter parameters
+  const startDate = params.startDate || null;
+  const endDate = params.endDate || null;
+  const type = (params.type as 'all' | 'earned' | 'spent') || 'all';
+  const minPoints = params.minPoints ? parseInt(params.minPoints, 10) : null;
+  const maxPoints = params.maxPoints ? parseInt(params.maxPoints, 10) : null;
+  const reason = params.reason || null;
   
   // Check if using placeholder Supabase (dev mode)
   const isDevMode = !process.env.NEXT_PUBLIC_SUPABASE_URL || 
                     process.env.NEXT_PUBLIC_SUPABASE_URL.includes('placeholder');
   
+  // Get user ID first (needed for both RecentTransactionsCard and history queries)
+  let userId: string | null = null;
+  if (!isDevMode) {
+    const supabase = await createClient();
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    userId = session?.access_token ? getJwtSubject(session.access_token) : null;
+    if (!userId) return null;
+  }
+
   let pointsBalance = 0;
   let history: any[] = [];
   let totalEarned = 0;
@@ -68,33 +97,83 @@ export default async function PointsHistoryPage({ searchParams }: PointsHistoryP
     totalCount = 4;
   } else {
     const supabase = await createClient();
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-    const userId = session?.access_token ? getJwtSubject(session.access_token) : null;
 
-    if (!userId) return null;
+    // Helper function to build base query with all filters
+    const buildFilteredQuery = (query: any) => {
+      // Date filtering: prioritize custom date range, then days filter
+      if (startDate) {
+        query = query.gte('created_at', new Date(startDate).toISOString());
+      } else if (daysFilter !== null) {
+        if (daysFilter === 9999) {
+          // All time - no date filter
+        } else {
+          const cutoffDate = new Date();
+          cutoffDate.setDate(cutoffDate.getDate() - daysFilter);
+          query = query.gte('created_at', cutoffDate.toISOString());
+        }
+      }
+      
+      if (endDate) {
+        // Include the entire end date by setting time to end of day
+        const endDateObj = new Date(endDate);
+        endDateObj.setHours(23, 59, 59, 999);
+        query = query.lte('created_at', endDateObj.toISOString());
+      }
+      
+      // Transaction type filter
+      if (type === 'earned') {
+        query = query.gt('delta_points', 0);
+      } else if (type === 'spent') {
+        query = query.lt('delta_points', 0);
+      }
+      
+      // Points range filter
+      if (minPoints !== null) {
+        query = query.gte('delta_points', minPoints);
+      }
+      if (maxPoints !== null) {
+        query = query.lte('delta_points', maxPoints);
+      }
+      
+      // Reason search filter (case-insensitive)
+      if (reason) {
+        query = query.ilike('reason', `%${reason}%`);
+      }
+      
+      return query;
+    };
 
-    // Calculate date cutoff
-    const cutoffDate = new Date();
-    cutoffDate.setDate(cutoffDate.getDate() - daysFilter);
-    const cutoffISO = cutoffDate.toISOString();
+    // Build queries for count, totals, and paginated history
+    let baseQuery = supabase
+      .from('points_ledger')
+      .select('*')
+      .eq('user_id', userId);
+    baseQuery = buildFilteredQuery(baseQuery);
 
-    // Run all queries in parallel for faster loading
-    const [balanceResult, countResult, historyResult] = await Promise.all([
+    // Build count query
+    let countQuery = supabase
+      .from('points_ledger')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', userId);
+    countQuery = buildFilteredQuery(countQuery);
+
+    // Build paginated history query
+    let historyQuery = supabase
+      .from('points_ledger')
+      .select('id, reason, delta_points, created_at')
+      .eq('user_id', userId);
+    historyQuery = buildFilteredQuery(historyQuery);
+    
+    historyQuery = historyQuery
+      .order('created_at', { ascending: false })
+      .range((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage - 1);
+
+    // Run queries in parallel
+    const [balanceResult, countResult, totalsResult, historyResult] = await Promise.all([
       supabase.rpc('get_user_points_balance', { p_user_id: userId }),
-      supabase
-        .from('points_ledger')
-        .select('id', { count: 'exact', head: true })
-        .eq('user_id', userId)
-        .gte('created_at', cutoffISO),
-      supabase
-        .from('points_ledger')
-        .select('id, reason, delta_points, created_at')
-        .eq('user_id', userId)
-        .gte('created_at', cutoffISO)
-        .order('created_at', { ascending: false })
-        .range((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage - 1),
+      countQuery,
+      baseQuery.select('delta_points'), // Get all delta_points for totals calculation
+      historyQuery,
     ]);
 
     pointsBalance = balanceResult.data || 0;
@@ -102,58 +181,82 @@ export default async function PointsHistoryPage({ searchParams }: PointsHistoryP
     hasMore = totalCount > currentPage * itemsPerPage;
     history = historyResult.data || [];
 
-    // Calculate totals for the filtered period
-    totalEarned = history
-      ?.filter((entry) => entry.delta_points > 0)
-      .reduce((sum, entry) => sum + entry.delta_points, 0) || 0;
+    // Calculate totals for the filtered period (from all records in period)
+    const allDeltaPoints = totalsResult.data || [];
+    totalEarned = allDeltaPoints
+      .filter((entry: any) => entry.delta_points > 0)
+      .reduce((sum: number, entry: any) => sum + entry.delta_points, 0) || 0;
 
     totalSpent = Math.abs(
-      history
-        ?.filter((entry) => entry.delta_points < 0)
-        .reduce((sum, entry) => sum + entry.delta_points, 0) || 0
+      allDeltaPoints
+        .filter((entry: any) => entry.delta_points < 0)
+        .reduce((sum: number, entry: any) => sum + entry.delta_points, 0) || 0
     );
   }
 
   const totalPages = Math.ceil(totalCount / itemsPerPage);
 
+  const getFilterLabel = () => {
+    if (startDate && endDate) {
+      return `Custom range`;
+    }
+    if (startDate) {
+      return `From ${new Date(startDate).toLocaleDateString()}`;
+    }
+    if (daysFilter === null) {
+      // Check if any other filters are active
+      if (type !== 'all' || minPoints !== null || maxPoints !== null || reason) {
+        return 'All time (filtered)';
+      }
+      return 'All time';
+    }
+    if (daysFilter === 9999) return 'All time';
+    if (daysFilter === 365) return 'Last year';
+    if (daysFilter === 180) return 'Last 6 months';
+    if (daysFilter === 90) return 'Last 90 days';
+    if (daysFilter === 30) return 'Last 30 days';
+    return `Last ${daysFilter} days`;
+  };
+
+  // Build pagination URL preserving all filters
+  const buildPaginationUrl = (page: number) => {
+    const params = new URLSearchParams();
+    if (daysFilter !== null) params.set('days', daysFilter.toString());
+    if (startDate) params.set('startDate', startDate);
+    if (endDate) params.set('endDate', endDate);
+    if (type !== 'all') params.set('type', type);
+    if (minPoints !== null) params.set('minPoints', minPoints.toString());
+    if (maxPoints !== null) params.set('maxPoints', maxPoints.toString());
+    if (reason) params.set('reason', reason);
+    params.set('page', page.toString());
+    return `/points-history?${params.toString()}`;
+  };
+
   return (
     <div>
       <PageHeader 
         title="Points History" 
-        subtitle={`Track your earnings and redemptions (last ${daysFilter} days)`}
+        subtitle="Track your earnings and redemptions"
       />
 
-      {/* Date filter controls */}
-      <div className="mb-6 flex flex-wrap gap-2">
-        <Link href={`/points-history?days=30&page=1`}>
-          <Button variant={daysFilter === 30 ? 'primary' : 'outline'} size="sm">
-            Last 30 days
-          </Button>
-        </Link>
-        <Link href={`/points-history?days=90&page=1`}>
-          <Button variant={daysFilter === 90 ? 'primary' : 'outline'} size="sm">
-            Last 90 days
-          </Button>
-        </Link>
-        <Link href={`/points-history?days=180&page=1`}>
-          <Button variant={daysFilter === 180 ? 'primary' : 'outline'} size="sm">
-            Last 6 months
-          </Button>
-        </Link>
-        <Link href={`/points-history?days=365&page=1`}>
-          <Button variant={daysFilter === 365 ? 'primary' : 'outline'} size="sm">
-            Last year
-          </Button>
-        </Link>
-        <Link href={`/points-history?days=9999&page=1`}>
-          <Button variant={daysFilter === 9999 ? 'primary' : 'outline'} size="sm">
-            All time
-          </Button>
-        </Link>
+      {/* Recent Transactions Card - Always shows last 30 days */}
+      <div className="mb-8">
+        <RecentTransactionsCard isDevMode={isDevMode} userId={userId} />
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-8">
+      {/* Extended History Section */}
+      <div className="flex flex-col lg:flex-row gap-4">
+        {/* Left Sidebar - Filters */}
+        <aside className="lg:w-52 flex-shrink-0">
+          <div className="sticky top-24 pt-4">
+            <HistoryFilters currentDays={daysFilter || undefined} />
+          </div>
+        </aside>
+
+        {/* Main Content */}
+        <div className="flex-1 min-w-0">
+          {/* Stats Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-8">
         <Card className="hover:shadow-md transition-shadow">
           <CardContent className="py-8">
             <div className="text-center">
@@ -163,7 +266,7 @@ export default async function PointsHistoryPage({ searchParams }: PointsHistoryP
                 </svg>
               </div>
               <p className="text-sm font-medium text-gray-600 mb-2">Current Balance</p>
-              <p className="text-4xl font-bold text-secondary">{pointsBalance.toLocaleString()}</p>
+              <p className="text-4xl font-bold text-gray-900">{pointsBalance.toLocaleString()}</p>
             </div>
           </CardContent>
         </Card>
@@ -171,13 +274,13 @@ export default async function PointsHistoryPage({ searchParams }: PointsHistoryP
         <Card className="hover:shadow-md transition-shadow">
           <CardContent className="py-8">
             <div className="text-center">
-              <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-secondary/20 text-secondary mb-3">
+              <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-blue-100 text-blue-600 mb-3">
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 11l5-5m0 0l5 5m-5-5v12" />
                 </svg>
               </div>
               <p className="text-sm font-medium text-gray-600 mb-2">Total Earned</p>
-              <p className="text-4xl font-bold text-secondary">{totalEarned.toLocaleString()}</p>
+              <p className="text-4xl font-bold text-green-600">{totalEarned.toLocaleString()}</p>
             </div>
           </CardContent>
         </Card>
@@ -185,24 +288,24 @@ export default async function PointsHistoryPage({ searchParams }: PointsHistoryP
         <Card className="hover:shadow-md transition-shadow">
           <CardContent className="py-8">
             <div className="text-center">
-              <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-primary/20 text-primary mb-3">
+              <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-blue-100 text-blue-600 mb-3">
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                 </svg>
               </div>
               <p className="text-sm font-medium text-gray-600 mb-2">Total Redeemed</p>
-              <p className="text-4xl font-bold text-primary">{totalSpent.toLocaleString()}</p>
+              <p className="text-4xl font-bold text-gray-900">{totalSpent.toLocaleString()}</p>
             </div>
           </CardContent>
-        </Card>
-      </div>
+          </Card>
+          </div>
 
-      {/* Transaction History */}
-      <Card>
+          {/* Extended Transaction History */}
+          <Card>
         <CardHeader className="bg-gray-50">
           <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-gray-900">Recent Transactions</h2>
-            <Badge variant="default">{totalCount} in period</Badge>
+            <h2 className="text-lg font-semibold text-gray-900">Transaction History</h2>
+            <Badge variant="default">{totalCount} {getFilterLabel()}</Badge>
           </div>
         </CardHeader>
         <CardContent>
@@ -262,7 +365,7 @@ export default async function PointsHistoryPage({ searchParams }: PointsHistoryP
             {totalPages > 1 && (
               <div className="mt-6 flex items-center justify-center gap-2 pt-6 border-t">
                 {currentPage > 1 && (
-                  <Link href={`/points-history?days=${daysFilter}&page=${currentPage - 1}`}>
+                  <Link href={buildPaginationUrl(currentPage - 1)}>
                     <Button variant="outline" size="sm">
                       Previous
                     </Button>
@@ -272,7 +375,7 @@ export default async function PointsHistoryPage({ searchParams }: PointsHistoryP
                   Page {currentPage} of {totalPages}
                 </span>
                 {hasMore && (
-                  <Link href={`/points-history?days=${daysFilter}&page=${currentPage + 1}`}>
+                  <Link href={buildPaginationUrl(currentPage + 1)}>
                     <Button variant="outline" size="sm">
                       Next
                     </Button>
@@ -292,8 +395,10 @@ export default async function PointsHistoryPage({ searchParams }: PointsHistoryP
               description="Your points transactions will appear here once you start earning and redeeming"
             />
           )}
-        </CardContent>
-      </Card>
+          </CardContent>
+          </Card>
+        </div>
+      </div>
     </div>
   );
 }

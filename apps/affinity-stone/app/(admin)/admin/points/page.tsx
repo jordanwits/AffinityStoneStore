@@ -1,31 +1,176 @@
 import { createClient } from '@/lib/supabase/server';
 import { Card, CardHeader, CardContent } from 'core/components/Card';
 import { Button } from 'core/components/Button';
+import { Badge } from 'core/components/Badge';
+import { PageHeader } from 'core/components/PageHeader';
+import Link from 'next/link';
 import PointsAdjustmentForm from './PointsAdjustmentForm';
-import { TransactionRow } from './TransactionRow';
 import { BulkPointsUpload } from './BulkPointsUpload';
+import { AdminHistoryFilters } from './AdminHistoryFilters';
+import { AdminRecentTransactionsCard } from './AdminRecentTransactionsCard';
 
-export default async function AdminPointsPage() {
+interface AdminPointsPageProps {
+  searchParams: Promise<{
+    days?: string;
+    page?: string;
+    startDate?: string;
+    endDate?: string;
+    type?: string;
+    minPoints?: string;
+    maxPoints?: string;
+    reason?: string;
+    userEmail?: string;
+  }>;
+}
+
+export default async function AdminPointsPage({ searchParams }: AdminPointsPageProps) {
+  const params = await searchParams;
+  // Default to all time for extended history view if no filters are set
+  const hasAnyFilter = params.days || params.startDate || params.endDate || params.type || params.minPoints || params.maxPoints || params.reason || params.userEmail;
+  const daysFilter = params.days ? parseInt(params.days, 10) : (hasAnyFilter ? null : 9999);
+  const currentPage = parseInt(params.page || '1', 10);
+  const itemsPerPage = 50;
+  
+  // Extract filter parameters
+  const startDate = params.startDate || null;
+  const endDate = params.endDate || null;
+  const type = (params.type as 'all' | 'earned' | 'spent') || 'all';
+  const minPoints = params.minPoints ? parseInt(params.minPoints, 10) : null;
+  const maxPoints = params.maxPoints ? parseInt(params.maxPoints, 10) : null;
+  const reason = params.reason || null;
+  const userEmail = params.userEmail || null;
+  
   // Check if using placeholder Supabase (dev mode)
   const isDevMode = !process.env.NEXT_PUBLIC_SUPABASE_URL || 
                     process.env.NEXT_PUBLIC_SUPABASE_URL.includes('placeholder');
   
-  let recentTransactions: any[] = [];
+  let transactions: any[] = [];
+  let totalCount = 0;
+  let hasMore = false;
+  let totalEarned = 0;
+  let totalSpent = 0;
   
   if (!isDevMode) {
     const supabase = await createClient();
 
-    // Get recent points transactions
-    const { data } = await supabase
+    // Get user IDs if filtering by email
+    let userIds: string[] | null = null;
+    if (userEmail) {
+      const { data: matchingUsers } = await supabase
+        .from('profiles')
+        .select('id')
+        .ilike('email', `%${userEmail}%`);
+      
+      if (matchingUsers && matchingUsers.length > 0) {
+        userIds = matchingUsers.map(u => u.id);
+      } else {
+        // No matching users, return empty results
+        userIds = [];
+      }
+    }
+
+    // Helper function to build base query with all filters
+    const buildFilteredQuery = (query: any) => {
+      // User email filter - filter by user IDs
+      if (userIds !== null) {
+        if (userIds.length === 0) {
+          // No matching users, return empty result by filtering to non-existent ID
+          query = query.eq('user_id', '00000000-0000-0000-0000-000000000000');
+        } else {
+          query = query.in('user_id', userIds);
+        }
+      }
+      
+      // Date filtering: prioritize custom date range, then days filter
+      if (startDate) {
+        query = query.gte('created_at', new Date(startDate).toISOString());
+      } else if (daysFilter !== null) {
+        if (daysFilter === 9999) {
+          // All time - no date filter
+        } else {
+          const cutoffDate = new Date();
+          cutoffDate.setDate(cutoffDate.getDate() - daysFilter);
+          query = query.gte('created_at', cutoffDate.toISOString());
+        }
+      }
+      
+      if (endDate) {
+        // Include the entire end date by setting time to end of day
+        const endDateObj = new Date(endDate);
+        endDateObj.setHours(23, 59, 59, 999);
+        query = query.lte('created_at', endDateObj.toISOString());
+      }
+      
+      // Transaction type filter
+      if (type === 'earned') {
+        query = query.gt('delta_points', 0);
+      } else if (type === 'spent') {
+        query = query.lt('delta_points', 0);
+      }
+      
+      // Points range filter
+      if (minPoints !== null) {
+        query = query.gte('delta_points', minPoints);
+      }
+      if (maxPoints !== null) {
+        query = query.lte('delta_points', maxPoints);
+      }
+      
+      // Reason search filter (case-insensitive)
+      if (reason) {
+        query = query.ilike('reason', `%${reason}%`);
+      }
+      
+      return query;
+    };
+
+    // Build queries for count, totals, and paginated history
+    let baseQuery = supabase
       .from('points_ledger')
-      .select('id, delta_points, reason, order_id, created_at, profiles!points_ledger_user_id_fkey(email)')
-      .order('created_at', { ascending: false })
-      .limit(50);
+      .select('*');
+    baseQuery = buildFilteredQuery(baseQuery);
+
+    // Build count query
+    let countQuery = supabase
+      .from('points_ledger')
+      .select('id', { count: 'exact', head: true });
+    countQuery = buildFilteredQuery(countQuery);
+
+    // Build paginated transactions query
+    let transactionsQuery = supabase
+      .from('points_ledger')
+      .select('id, delta_points, reason, order_id, created_at, profiles!points_ledger_user_id_fkey(email)');
+    transactionsQuery = buildFilteredQuery(transactionsQuery);
     
-    recentTransactions = data || [];
+    transactionsQuery = transactionsQuery
+      .order('created_at', { ascending: false })
+      .range((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage - 1);
+
+    // Run queries in parallel
+    const [countResult, totalsResult, transactionsResult] = await Promise.all([
+      countQuery,
+      baseQuery.select('delta_points'), // Get all delta_points for totals calculation
+      transactionsQuery,
+    ]);
+
+    totalCount = countResult.count || 0;
+    hasMore = totalCount > currentPage * itemsPerPage;
+    transactions = transactionsResult.data || [];
+
+    // Calculate totals for the filtered period (from all records in period)
+    const allDeltaPoints = totalsResult.data || [];
+    totalEarned = allDeltaPoints
+      .filter((entry: any) => entry.delta_points > 0)
+      .reduce((sum: number, entry: any) => sum + entry.delta_points, 0) || 0;
+
+    totalSpent = Math.abs(
+      allDeltaPoints
+        .filter((entry: any) => entry.delta_points < 0)
+        .reduce((sum: number, entry: any) => sum + entry.delta_points, 0) || 0
+    );
   } else {
     // Mock data for dev mode
-    recentTransactions = [
+    transactions = [
       {
         id: '1',
         delta_points: 1000,
@@ -42,7 +187,48 @@ export default async function AdminPointsPage() {
         profiles: { email: 'demo@affinity.com' },
       },
     ];
+    totalCount = 2;
+    totalEarned = 1000;
+    totalSpent = 500;
   }
+
+  const totalPages = Math.ceil(totalCount / itemsPerPage);
+
+  const getFilterLabel = () => {
+    if (startDate && endDate) {
+      return `Custom range`;
+    }
+    if (startDate) {
+      return `From ${new Date(startDate).toLocaleDateString()}`;
+    }
+    if (daysFilter === null) {
+      if (type !== 'all' || minPoints !== null || maxPoints !== null || reason || userEmail) {
+        return 'All time (filtered)';
+      }
+      return 'All time';
+    }
+    if (daysFilter === 9999) return 'All time';
+    if (daysFilter === 365) return 'Last year';
+    if (daysFilter === 180) return 'Last 6 months';
+    if (daysFilter === 90) return 'Last 90 days';
+    if (daysFilter === 30) return 'Last 30 days';
+    return `Last ${daysFilter} days`;
+  };
+
+  // Build pagination URL preserving all filters
+  const buildPaginationUrl = (page: number) => {
+    const urlParams = new URLSearchParams();
+    if (daysFilter !== null) urlParams.set('days', daysFilter.toString());
+    if (startDate) urlParams.set('startDate', startDate);
+    if (endDate) urlParams.set('endDate', endDate);
+    if (type !== 'all') urlParams.set('type', type);
+    if (minPoints !== null) urlParams.set('minPoints', minPoints.toString());
+    if (maxPoints !== null) urlParams.set('maxPoints', maxPoints.toString());
+    if (reason) urlParams.set('reason', reason);
+    if (userEmail) urlParams.set('userEmail', userEmail);
+    urlParams.set('page', page.toString());
+    return `/admin/points?${urlParams.toString()}`;
+  };
 
   return (
     <div>
@@ -63,44 +249,192 @@ export default async function AdminPointsPage() {
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <h2 className="text-lg font-semibold text-gray-900">Recent Transactions</h2>
-        </CardHeader>
-        <CardContent>
-          {recentTransactions && recentTransactions.length > 0 ? (
-            <div className="overflow-x-auto" style={{ position: 'relative' }}>
-              <table className="min-w-full divide-y divide-gray-200" style={{ position: 'relative' }}>
-                <thead>
-                  <tr>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider bg-gray-50">
-                      User
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider bg-gray-50">
-                      Points
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider bg-gray-50">
-                      Reason
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider bg-gray-50">
-                      Date
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200">
-                  {recentTransactions.map((transaction: any) => (
-                    <TransactionRow key={transaction.id} transaction={transaction} />
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : (
-            <p className="text-gray-700 text-center py-8">
-              {isDevMode ? 'Mock transactions shown (configure Supabase to see real data)' : 'No transactions found'}
-            </p>
-          )}
-        </CardContent>
-      </Card>
+      {/* Recent Transactions Card - Always shows last 30 days */}
+      <div className="mb-8">
+        <AdminRecentTransactionsCard isDevMode={isDevMode} />
+      </div>
+
+      {/* Extended History Section */}
+      <div className="flex flex-col lg:flex-row gap-4">
+        {/* Left Sidebar - Filters */}
+        <aside className="lg:w-52 flex-shrink-0">
+          <div className="sticky top-24 pt-4">
+            <AdminHistoryFilters currentDays={daysFilter || undefined} />
+          </div>
+        </aside>
+
+        {/* Main Content */}
+        <div className="flex-1 min-w-0">
+          {/* Stats Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-8">
+            <Card className="hover:shadow-md transition-shadow">
+              <CardContent className="py-8">
+                <div className="text-center">
+                  <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-blue-100 text-blue-600 mb-3">
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                  <p className="text-sm font-medium text-gray-600 mb-2">Total Points</p>
+                  <p className="text-4xl font-bold text-gray-900">{(totalEarned - totalSpent).toLocaleString()}</p>
+                  <p className="text-xs text-gray-500 mt-1">Net balance</p>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="hover:shadow-md transition-shadow">
+              <CardContent className="py-8">
+                <div className="text-center">
+                  <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-blue-100 text-blue-600 mb-3">
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 11l5-5m0 0l5 5m-5-5v12" />
+                    </svg>
+                  </div>
+                  <p className="text-sm font-medium text-gray-600 mb-2">Total Earned</p>
+                  <p className="text-4xl font-bold text-green-600">{totalEarned.toLocaleString()}</p>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="hover:shadow-md transition-shadow">
+              <CardContent className="py-8">
+                <div className="text-center">
+                  <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-blue-100 text-blue-600 mb-3">
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                  </div>
+                  <p className="text-sm font-medium text-gray-600 mb-2">Total Redeemed</p>
+                  <p className="text-4xl font-bold text-gray-900">{totalSpent.toLocaleString()}</p>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Extended Transaction History */}
+          <Card>
+            <CardHeader className="bg-gray-50">
+              <div className="flex items-center justify-between">
+                <h2 className="text-lg font-semibold text-gray-900">Transaction History</h2>
+                <Badge variant="default">{totalCount} {getFilterLabel()}</Badge>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {transactions && transactions.length > 0 ? (
+                <>
+                  <div className="divide-y">
+                    {transactions.map((entry: any) => {
+                      const hasOrderLink = !!entry.order_id;
+                      return (
+                        <div
+                          key={entry.id}
+                          className={`flex items-start justify-between py-4 first:pt-0 last:pb-0 hover:bg-gray-50 -mx-6 px-6 transition-colors ${hasOrderLink ? 'group cursor-pointer' : ''}`}
+                        >
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-3 mb-2">
+                              {entry.delta_points > 0 ? (
+                                <div className="flex-shrink-0 w-8 h-8 rounded-full bg-green-100 flex items-center justify-center">
+                                  <svg className="w-4 h-4 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v3.586l-1.293-1.293a1 1 0 00-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 10.586V7z" clipRule="evenodd" transform="rotate(180 10 10)" />
+                                  </svg>
+                                </div>
+                              ) : (
+                                <div className="flex-shrink-0 w-8 h-8 rounded-full bg-red-100 flex items-center justify-center">
+                                  <svg className="w-4 h-4 text-red-600" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v3.586L7.707 9.293a1 1 0 00-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 10.586V7z" clipRule="evenodd" />
+                                  </svg>
+                                </div>
+                              )}
+                              <div className="flex-1 min-w-0">
+                                <p className="font-semibold text-gray-900 truncate">
+                                  {hasOrderLink ? (
+                                    <Link href={`/admin/orders/${entry.order_id}`} className="group-hover:text-primary transition-colors">
+                                      {entry.reason}
+                                      <svg 
+                                        className="w-4 h-4 text-blue-600 inline-block ml-2" 
+                                        fill="none" 
+                                        stroke="currentColor" 
+                                        viewBox="0 0 24 24"
+                                        aria-label="Linked to order"
+                                      >
+                                        <path 
+                                          strokeLinecap="round" 
+                                          strokeLinejoin="round" 
+                                          strokeWidth={2} 
+                                          d="M13 7l5 5m0 0l-5 5m5-5H6" 
+                                        />
+                                      </svg>
+                                    </Link>
+                                  ) : (
+                                    entry.reason
+                                  )}
+                                </p>
+                                <div className="flex items-center gap-2 mt-0.5">
+                                  <p className="text-sm text-gray-500">
+                                    {entry.profiles?.email || 'Unknown user'}
+                                  </p>
+                                  <span className="text-gray-400">•</span>
+                                  <p className="text-sm text-gray-500">
+                                    {new Date(entry.created_at).toLocaleDateString('en-US', { 
+                                      month: 'short', 
+                                      day: 'numeric', 
+                                      year: 'numeric',
+                                      hour: 'numeric',
+                                      minute: '2-digit'
+                                    })}
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="text-right ml-4 flex-shrink-0">
+                            <p
+                              className={`text-2xl font-bold ${
+                                entry.delta_points > 0 ? 'text-green-600' : 'text-red-600'
+                              }`}
+                            >
+                              {entry.delta_points > 0 ? '+' : ''}
+                              {entry.delta_points.toLocaleString()}
+                            </p>
+                            <p className="text-xs text-gray-500 mt-1">points</p>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Pagination controls */}
+                  {totalPages > 1 && (
+                    <div className="mt-6 flex items-center justify-center gap-2 pt-6 border-t">
+                      {currentPage > 1 && (
+                        <Link href={buildPaginationUrl(currentPage - 1)}>
+                          <Button variant="outline" size="sm">
+                            Previous
+                          </Button>
+                        </Link>
+                      )}
+                      <span className="text-sm text-gray-600">
+                        Page {currentPage} of {totalPages}
+                      </span>
+                      {hasMore && (
+                        <Link href={buildPaginationUrl(currentPage + 1)}>
+                          <Button variant="outline" size="sm">
+                            Next
+                          </Button>
+                        </Link>
+                      )}
+                    </div>
+                  )}
+                </>
+              ) : (
+                <p className="text-gray-700 text-center py-8">
+                  {isDevMode ? 'Mock transactions shown (configure Supabase to see real data)' : 'No transactions found'}
+                </p>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      </div>
     </div>
   );
 }

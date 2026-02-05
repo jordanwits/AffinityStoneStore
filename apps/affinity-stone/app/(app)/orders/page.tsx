@@ -109,7 +109,7 @@ export default async function OrdersPage({ searchParams }: OrdersPageProps) {
   const totalPages = Math.ceil(totalCount / itemsPerPage);
 
   return (
-    <div>
+    <div className="pb-8">
       <PageHeader 
         title="My Orders" 
         subtitle={totalCount > 0 ? `${totalCount} ${totalCount === 1 ? 'order' : 'orders'} in last ${daysFilter} days` : 'Track your redemptions'}

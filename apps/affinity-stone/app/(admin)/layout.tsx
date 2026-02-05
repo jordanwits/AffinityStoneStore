@@ -15,5 +15,5 @@ export default async function AdminLayout({ children }: AdminLayoutProps) {
     await requireAdmin();
   }
 
-  return <AdminLayoutClient>{children}</AdminLayoutClient>;
+  return <AdminLayoutClient isDevMode={isDevMode}>{children}</AdminLayoutClient>;
 }

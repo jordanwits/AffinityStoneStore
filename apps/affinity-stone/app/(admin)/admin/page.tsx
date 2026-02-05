@@ -131,22 +131,22 @@ export default async function AdminDashboardPage() {
               <table className="min-w-full divide-y divide-gray-200">
                 <thead>
                   <tr>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider bg-gray-50">
+                    <th className="px-4 py-5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider bg-gray-50">
                       Order ID
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider bg-gray-50">
+                    <th className="px-4 py-5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider bg-gray-50">
                       Customer
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider bg-gray-50">
+                    <th className="px-4 py-5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider bg-gray-50">
                       Delivery Method
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider bg-gray-50">
+                    <th className="px-4 py-5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider bg-gray-50">
                       Points
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider bg-gray-50">
+                    <th className="px-4 py-5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider bg-gray-50">
                       Status
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider bg-gray-50">
+                    <th className="px-4 py-5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider bg-gray-50">
                       Date
                     </th>
                   </tr>
@@ -154,7 +154,7 @@ export default async function AdminDashboardPage() {
                 <tbody className="divide-y divide-gray-200">
                   {recentOrders.map((order: any) => (
                     <tr key={order.id} className="hover:bg-gray-50">
-                      <td className="px-4 py-3 text-sm">
+                      <td className="px-4 py-5 text-sm">
                         <Link
                           href={`/admin/orders/${order.id}`}
                           className="text-primary hover:underline font-mono font-semibold"
@@ -162,8 +162,8 @@ export default async function AdminDashboardPage() {
                           {order.id.slice(0, 8)}
                         </Link>
                       </td>
-                      <td className="px-4 py-3 text-sm text-gray-900">{order.profiles?.email || 'N/A'}</td>
-                      <td className="px-4 py-3 text-sm">
+                      <td className="px-4 py-5 text-sm text-gray-900">{order.profiles?.email || 'N/A'}</td>
+                      <td className="px-4 py-5 text-sm">
                         <span
                           className={`px-2 py-1 rounded-full text-xs font-medium ${
                             order.delivery_method === 'pickup'
@@ -174,8 +174,8 @@ export default async function AdminDashboardPage() {
                           {order.delivery_method === 'pickup' ? 'Pickup' : 'Delivery'}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-sm font-semibold text-gray-900">{order.total_points}</td>
-                      <td className="px-4 py-3 text-sm">
+                      <td className="px-4 py-5 text-sm font-semibold text-gray-900">{order.total_points}</td>
+                      <td className="px-4 py-5 text-sm">
                         <span
                           className={`px-2 py-1 rounded-full text-xs font-medium ${
                             order.status === 'delivered'
@@ -190,7 +190,7 @@ export default async function AdminDashboardPage() {
                           {order.status}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-sm text-gray-700">
+                      <td className="px-4 py-5 text-sm text-gray-700">
                         {new Date(order.created_at).toLocaleDateString()}
                       </td>
                     </tr>

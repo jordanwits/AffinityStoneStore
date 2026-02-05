@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { Card, CardHeader, CardContent } from 'core/components/Card';
 import { Button } from 'core/components/Button';
+import { BackButton } from 'core/components/BackButton';
 import { notFound } from 'next/navigation';
 import { OrderStatusEditor } from './OrderStatusEditor';
 
@@ -43,6 +44,7 @@ export default async function AdminOrderDetailPage({
 
   return (
     <div className="px-4 py-6 sm:px-0">
+      <BackButton href="/admin/orders" label="Back to Orders" className="mb-4" />
       <div className="flex justify-between items-start mb-8">
         <div>
           <h1 className="text-3xl font-bold text-gray-900 mb-2">

@@ -18,6 +18,7 @@ export default function MobileMenu({ userEmail, isAdmin, isDevMode }: MobileMenu
     { href: '/dashboard', label: 'Shop' },
     { href: '/orders', label: 'Orders' },
     { href: '/points-history', label: 'Points' },
+    { href: '/profile', label: 'Profile' },
   ];
 
   return (
