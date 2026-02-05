@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import BaseLayout from "core/components/BaseLayout";
 import { affinityBranding } from "../branding";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -16,6 +17,7 @@ export default function RootLayout({
   return (
     <BaseLayout branding={affinityBranding}>
       {children}
+      <SpeedInsights />
     </BaseLayout>
   );
 }
