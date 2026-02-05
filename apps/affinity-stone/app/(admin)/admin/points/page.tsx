@@ -49,6 +49,8 @@ export default async function AdminPointsPage({ searchParams }: AdminPointsPageP
   let hasMore = false;
   let totalEarned = 0;
   let totalSpent = 0;
+  let uniqueUsers = 0;
+  let averageTransactionValue = 0;
   
   if (!isDevMode) {
     const supabase = await createClient();
@@ -124,7 +126,7 @@ export default async function AdminPointsPage({ searchParams }: AdminPointsPageP
       return query;
     };
 
-    // Build queries for count, totals, and paginated history
+    // Build queries for count, totals, unique users, and paginated history
     let baseQuery = supabase
       .from('points_ledger')
       .select('*');
@@ -135,6 +137,12 @@ export default async function AdminPointsPage({ searchParams }: AdminPointsPageP
       .from('points_ledger')
       .select('id', { count: 'exact', head: true });
     countQuery = buildFilteredQuery(countQuery);
+
+    // Build unique users query
+    let uniqueUsersQuery = supabase
+      .from('points_ledger')
+      .select('user_id', { count: 'exact', head: false });
+    uniqueUsersQuery = buildFilteredQuery(uniqueUsersQuery);
 
     // Build paginated transactions query
     let transactionsQuery = supabase
@@ -147,9 +155,10 @@ export default async function AdminPointsPage({ searchParams }: AdminPointsPageP
       .range((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage - 1);
 
     // Run queries in parallel
-    const [countResult, totalsResult, transactionsResult] = await Promise.all([
+    const [countResult, totalsResult, uniqueUsersResult, transactionsResult] = await Promise.all([
       countQuery,
       baseQuery.select('delta_points'), // Get all delta_points for totals calculation
+      uniqueUsersQuery,
       transactionsQuery,
     ]);
 
@@ -157,7 +166,11 @@ export default async function AdminPointsPage({ searchParams }: AdminPointsPageP
     hasMore = totalCount > currentPage * itemsPerPage;
     transactions = transactionsResult.data || [];
 
-    // Calculate totals for the filtered period (from all records in period)
+    // Calculate unique users
+    const allUserIds = uniqueUsersResult.data || [];
+    uniqueUsers = new Set(allUserIds.map((entry: any) => entry.user_id)).size;
+
+    // Calculate totals and average transaction value for the filtered period
     const allDeltaPoints = totalsResult.data || [];
     totalEarned = allDeltaPoints
       .filter((entry: any) => entry.delta_points > 0)
@@ -168,6 +181,15 @@ export default async function AdminPointsPage({ searchParams }: AdminPointsPageP
         .filter((entry: any) => entry.delta_points < 0)
         .reduce((sum: number, entry: any) => sum + entry.delta_points, 0) || 0
     );
+
+    // Calculate average transaction value (absolute value of delta_points)
+    if (allDeltaPoints.length > 0) {
+      const totalAbsolutePoints = allDeltaPoints.reduce(
+        (sum: number, entry: any) => sum + Math.abs(entry.delta_points),
+        0
+      );
+      averageTransactionValue = Math.round(totalAbsolutePoints / allDeltaPoints.length);
+    }
   } else {
     // Mock data for dev mode
     transactions = [
@@ -190,6 +212,8 @@ export default async function AdminPointsPage({ searchParams }: AdminPointsPageP
     totalCount = 2;
     totalEarned = 1000;
     totalSpent = 500;
+    uniqueUsers = 1;
+    averageTransactionValue = 750;
   }
 
   const totalPages = Math.ceil(totalCount / itemsPerPage);
@@ -272,12 +296,12 @@ export default async function AdminPointsPage({ searchParams }: AdminPointsPageP
                 <div className="text-center">
                   <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-blue-100 text-blue-600 mb-3">
                     <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
                     </svg>
                   </div>
-                  <p className="text-sm font-medium text-gray-600 mb-2">Total Points</p>
-                  <p className="text-4xl font-bold text-gray-900">{(totalEarned - totalSpent).toLocaleString()}</p>
-                  <p className="text-xs text-gray-500 mt-1">Net balance</p>
+                  <p className="text-sm font-medium text-gray-600 mb-2">Total Transactions</p>
+                  <p className="text-4xl font-bold text-gray-900">{totalCount.toLocaleString()}</p>
+                  <p className="text-xs text-gray-500 mt-1">In filtered period</p>
                 </div>
               </CardContent>
             </Card>
@@ -287,25 +311,27 @@ export default async function AdminPointsPage({ searchParams }: AdminPointsPageP
                 <div className="text-center">
                   <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-blue-100 text-blue-600 mb-3">
                     <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 11l5-5m0 0l5 5m-5-5v12" />
-                    </svg>
-                  </div>
-                  <p className="text-sm font-medium text-gray-600 mb-2">Total Earned</p>
-                  <p className="text-4xl font-bold text-green-600">{totalEarned.toLocaleString()}</p>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="hover:shadow-md transition-shadow">
-              <CardContent className="py-8">
-                <div className="text-center">
-                  <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-blue-100 text-blue-600 mb-3">
-                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
                     </svg>
                   </div>
                   <p className="text-sm font-medium text-gray-600 mb-2">Total Redeemed</p>
-                  <p className="text-4xl font-bold text-gray-900">{totalSpent.toLocaleString()}</p>
+                  <p className="text-4xl font-bold text-green-600">{totalSpent.toLocaleString()}</p>
+                  <p className="text-xs text-gray-500 mt-1">Points redeemed</p>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="hover:shadow-md transition-shadow">
+              <CardContent className="py-8">
+                <div className="text-center">
+                  <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-blue-100 text-blue-600 mb-3">
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                    </svg>
+                  </div>
+                  <p className="text-sm font-medium text-gray-600 mb-2">Avg Transaction</p>
+                  <p className="text-4xl font-bold text-gray-900">{averageTransactionValue.toLocaleString()}</p>
+                  <p className="text-xs text-gray-500 mt-1">Points per transaction</p>
                 </div>
               </CardContent>
             </Card>
