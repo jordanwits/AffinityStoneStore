@@ -1,7 +1,7 @@
 'use client';
 
 import Image from 'next/image';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 
 interface Variant {
   id: string;
@@ -19,21 +19,24 @@ interface ImageGalleryProps {
 export default function ImageGallery({ images, productName, variants = [], selectedColor }: ImageGalleryProps) {
   const [selectedIndex, setSelectedIndex] = useState(0);
   
-  // Build complete image array including variant images
-  const allImages = [...images];
-  const colorVariantImages: string[] = [];
-  
-  // Add color variant images that aren't already in the main images array
-  variants.forEach(v => {
-    if (v.image_url && !allImages.includes(v.image_url)) {
-      allImages.push(v.image_url);
-      if (v.color) {
-        colorVariantImages.push(v.image_url);
+  // Build complete image array including variant images - memoized to prevent unnecessary recalculations
+  const allImages = useMemo(() => {
+    const imageSet = new Set(images);
+    const result = [...images];
+    
+    // Add color variant images that aren't already in the main images array
+    variants.forEach(v => {
+      if (v.image_url && !imageSet.has(v.image_url)) {
+        result.push(v.image_url);
+        imageSet.add(v.image_url);
       }
-    }
-  });
+    });
+    
+    return result;
+  }, [images, variants]);
 
   // When color changes, switch to that color's image
+  // Only runs when selectedColor changes, not when navigating with arrows
   useEffect(() => {
     if (selectedColor && variants.length > 0) {
       const colorVariant = variants.find(v => v.color === selectedColor && v.image_url);
@@ -46,8 +49,11 @@ export default function ImageGallery({ images, productName, variants = [], selec
         // No specific image for this color, go back to first product image
         setSelectedIndex(0);
       }
+    } else if (!selectedColor && images.length > 0) {
+      // When color is cleared, go back to first product image
+      setSelectedIndex(0);
     }
-  }, [selectedColor, variants, allImages, images.length]);
+  }, [selectedColor, allImages, variants, images.length]); // allImages is memoized, so this is stable
 
   if (!allImages || allImages.length === 0) {
     return (
