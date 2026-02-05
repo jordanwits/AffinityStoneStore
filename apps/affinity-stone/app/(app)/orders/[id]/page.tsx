@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase/server';
-import { getCurrentUser } from '@/lib/auth/get-user';
+import { getJwtSubject } from '@/lib/auth/jwt';
 import { Card, CardHeader, CardContent } from 'core/components/Card';
 import { PageHeader } from 'core/components/PageHeader';
 import { Badge } from 'core/components/Badge';
@@ -75,21 +75,24 @@ export default async function OrderDetailPage({
     ];
   } else {
     const supabase = await createClient();
-    const user = await getCurrentUser();
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    const userId = session?.access_token ? getJwtSubject(session.access_token) : null;
 
-    if (!user) return null;
+    if (!userId) return null;
 
     // Run both queries in parallel for faster loading
     const [orderResult, itemsResult] = await Promise.all([
       supabase
         .from('orders')
-        .select('*')
+        .select('id, user_id, status, total_points, delivery_method, ship_name, ship_address_line1, ship_address_line2, ship_city, ship_state, ship_zip, ship_country, tracking_number, notes, created_at')
         .eq('id', id)
-        .eq('user_id', user.id)
+        .eq('user_id', userId)
         .single(),
       supabase
         .from('order_items')
-        .select('*')
+        .select('id, order_id, product_id, product_name, product_image, variant_name, quantity, points_per_item, total_points')
         .eq('order_id', id),
     ]);
 

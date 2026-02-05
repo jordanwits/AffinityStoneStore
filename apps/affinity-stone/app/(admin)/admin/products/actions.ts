@@ -1,7 +1,7 @@
 'use server';
 
 import { requireAdmin } from '@/lib/auth/require-admin';
-import { revalidatePath } from 'next/cache';
+import { revalidatePath, revalidateTag } from 'next/cache';
 
 export async function updateConversionRate(newRate: number) {
   const { supabase, profile } = await requireAdmin();
@@ -25,7 +25,8 @@ export async function updateConversionRate(newRate: number) {
     return { success: false, error: 'Failed to update conversion rate' };
   }
   
-  // Revalidate pages that display product prices
+  // Revalidate cache tags and paths
+  revalidateTag('store-settings');
   revalidatePath('/admin/products');
   revalidatePath('/dashboard');
   
@@ -79,7 +80,9 @@ export async function createProduct(data: ProductData) {
     return { success: false, error: 'Failed to create product' };
   }
   
-  // Revalidate relevant pages
+  // Revalidate cache tags and paths
+  revalidateTag('products');
+  revalidateTag('filter-metadata');
   revalidatePath('/admin/products');
   revalidatePath('/dashboard');
   
@@ -212,7 +215,9 @@ export async function createVariant(data: VariantData) {
     return { success: false, error: 'Failed to create variant' };
   }
   
-  // Revalidate relevant pages
+  // Revalidate cache tags and paths
+  revalidateTag('product-variants');
+  revalidateTag('filter-metadata');
   revalidatePath('/admin/products');
   revalidatePath('/dashboard');
   revalidatePath(`/product/${data.product_id}`);
@@ -260,6 +265,9 @@ export async function updateVariant(variantId: string, data: Partial<VariantData
     .single();
   
   if (variant) {
+    // Revalidate cache tags and paths
+    revalidateTag('product-variants');
+    revalidateTag('filter-metadata');
     revalidatePath('/admin/products');
     revalidatePath('/dashboard');
     revalidatePath(`/product/${variant.product_id}`);
@@ -300,6 +308,9 @@ export async function setVariantActive(variantId: string, active: boolean) {
     .single();
   
   if (variant) {
+    // Revalidate cache tags and paths
+    revalidateTag('product-variants');
+    revalidateTag('filter-metadata');
     revalidatePath('/admin/products');
     revalidatePath('/dashboard');
     revalidatePath(`/product/${variant.product_id}`);
@@ -340,6 +351,9 @@ export async function deleteVariant(variantId: string) {
   }
   
   if (variant) {
+    // Revalidate cache tags and paths
+    revalidateTag('product-variants');
+    revalidateTag('filter-metadata');
     revalidatePath('/admin/products');
     revalidatePath('/dashboard');
     revalidatePath(`/product/${variant.product_id}`);
@@ -392,7 +406,10 @@ export async function deleteProduct(productId: string) {
     return { success: false, error: 'Failed to delete product' };
   }
   
-  // Revalidate relevant pages
+  // Revalidate cache tags and paths
+  revalidateTag('products');
+  revalidateTag('product-variants');
+  revalidateTag('filter-metadata');
   revalidatePath('/admin/products');
   revalidatePath('/dashboard');
   

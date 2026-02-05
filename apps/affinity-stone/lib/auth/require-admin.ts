@@ -26,7 +26,7 @@ export async function requireAdmin() {
   // Load the user's profile to check role
   const { data: profile, error: profileError } = await authClient
     .from('profiles')
-    .select('*')
+    .select('id, email, full_name, role, active')
     .eq('id', user.id)
     .single();
   

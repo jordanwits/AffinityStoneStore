@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase/server';
-import { getCurrentUser } from '@/lib/auth/get-user';
+import { getJwtSubject } from '@/lib/auth/jwt';
 import { Card, CardContent } from 'core/components/Card';
 import { PageHeader } from 'core/components/PageHeader';
 import { Badge } from 'core/components/Badge';
@@ -62,9 +62,12 @@ export default async function OrdersPage({ searchParams }: OrdersPageProps) {
     totalCount = 3;
   } else {
     const supabase = await createClient();
-    const user = await getCurrentUser();
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    const userId = session?.access_token ? getJwtSubject(session.access_token) : null;
 
-    if (!user) return null;
+    if (!userId) return null;
 
     // Calculate date cutoff
     const cutoffDate = new Date();
@@ -75,13 +78,13 @@ export default async function OrdersPage({ searchParams }: OrdersPageProps) {
     const [countResult, dataResult] = await Promise.all([
       supabase
         .from('orders')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', user.id)
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', userId)
         .gte('created_at', cutoffISO),
       supabase
         .from('orders')
-        .select('*')
-        .eq('user_id', user.id)
+        .select('id, total_points, status, delivery_method, created_at, ship_name')
+        .eq('user_id', userId)
         .gte('created_at', cutoffISO)
         .order('created_at', { ascending: false })
         .range((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage - 1),

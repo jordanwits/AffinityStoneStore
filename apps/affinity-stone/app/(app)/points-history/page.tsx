@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase/server';
-import { getCurrentUser } from '@/lib/auth/get-user';
+import { getJwtSubject } from '@/lib/auth/jwt';
 import { Card, CardHeader, CardContent } from 'core/components/Card';
 import { PageHeader } from 'core/components/PageHeader';
 import { EmptyState } from 'core/components/EmptyState';
@@ -68,9 +68,12 @@ export default async function PointsHistoryPage({ searchParams }: PointsHistoryP
     totalCount = 4;
   } else {
     const supabase = await createClient();
-    const user = await getCurrentUser();
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    const userId = session?.access_token ? getJwtSubject(session.access_token) : null;
 
-    if (!user) return null;
+    if (!userId) return null;
 
     // Calculate date cutoff
     const cutoffDate = new Date();
@@ -79,16 +82,16 @@ export default async function PointsHistoryPage({ searchParams }: PointsHistoryP
 
     // Run all queries in parallel for faster loading
     const [balanceResult, countResult, historyResult] = await Promise.all([
-      supabase.rpc('get_user_points_balance', { p_user_id: user.id }),
+      supabase.rpc('get_user_points_balance', { p_user_id: userId }),
       supabase
         .from('points_ledger')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', user.id)
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', userId)
         .gte('created_at', cutoffISO),
       supabase
         .from('points_ledger')
-        .select('*')
-        .eq('user_id', user.id)
+        .select('id, reason, delta_points, created_at')
+        .eq('user_id', userId)
         .gte('created_at', cutoffISO)
         .order('created_at', { ascending: false })
         .range((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage - 1),

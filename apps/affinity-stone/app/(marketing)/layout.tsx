@@ -1,22 +1,12 @@
 import Link from 'next/link';
 import { BrandMark } from 'core/components/BrandMark';
-import { Button } from 'core/components/Button';
-import { getCurrentUser } from '@/lib/auth/get-user';
+import MarketingHeaderActions from './MarketingHeaderActions';
 
 export default async function MarketingLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  // Check if user is already authenticated
-  const isDevMode = !process.env.NEXT_PUBLIC_SUPABASE_URL || 
-                    process.env.NEXT_PUBLIC_SUPABASE_URL.includes('placeholder');
-  
-  let user = null;
-  if (!isDevMode) {
-    user = await getCurrentUser();
-  }
-
   return (
     <div className="min-h-screen bg-white flex flex-col">
       {/* Header */}
@@ -30,22 +20,7 @@ export default async function MarketingLayout({
               />
             </Link>
             
-            <div className="flex items-center gap-3">
-              {user ? (
-                <Link href="/dashboard">
-                  <Button variant="primary">Go to Dashboard</Button>
-                </Link>
-              ) : (
-                <>
-                  <Link href="/login">
-                    <Button variant="outline">Login</Button>
-                  </Link>
-                  <Link href="/request-access">
-                    <Button variant="primary">Request Access</Button>
-                  </Link>
-                </>
-              )}
-            </div>
+            <MarketingHeaderActions />
           </div>
         </div>
       </header>

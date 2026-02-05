@@ -24,6 +24,14 @@ body {
   font-family: var(--font-geist-sans), system-ui, -apple-system, sans-serif;
 }
 
+@layer base {
+  /* Turbopack (lightningcss) rejects ::file-selector-button:disabled.
+     Style the disabled state by putting :disabled before the pseudo-element. */
+  input[type='file']:disabled::file-selector-button {
+    cursor: not-allowed;
+  }
+}
+
 @layer utilities {
   .text-balance {
     text-wrap: balance;

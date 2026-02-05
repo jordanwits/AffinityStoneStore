@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase/server';
-import { getCurrentUser } from '@/lib/auth/get-user';
+import { getJwtSubject } from '@/lib/auth/jwt';
 import { Card, CardContent } from 'core/components/Card';
 import { Badge } from 'core/components/Badge';
 import Link from 'next/link';
@@ -184,14 +184,17 @@ export default async function DashboardPage({
     
   } else {
     const supabase = await createClient();
-    const user = await getCurrentUser();
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    const userId = session?.access_token ? getJwtSubject(session.access_token) : null;
 
-    if (!user) return null;
+    if (!userId) return null;
 
     // Run initial queries in parallel for faster loading
     // Using cached functions for settings and filters (data that rarely changes)
     const [pointsResult, settings, filters] = await Promise.all([
-      supabase.rpc('get_user_points_balance', { p_user_id: user.id }),
+      supabase.rpc('get_user_points_balance', { p_user_id: userId }),
       getStoreSettings(),
       getFilterMetadata(),
     ]);
@@ -208,7 +211,7 @@ export default async function DashboardPage({
     // Build product query with filters
     let query = supabase
       .from('products')
-      .select('*')
+      .select('id, name, description, base_usd, images, active, category, collections, created_at')
       .eq('active', true);
 
     // Apply category filter

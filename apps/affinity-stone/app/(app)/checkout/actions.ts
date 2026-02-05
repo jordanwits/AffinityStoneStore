@@ -1,7 +1,7 @@
 'use server';
 
 import { createClient } from '@/lib/supabase/server';
-import { getCurrentUser } from '@/lib/auth/get-user';
+import { getJwtSubject } from '@/lib/auth/jwt';
 import { revalidatePath } from 'next/cache';
 import type { Cart, CartItem } from '@/lib/cart/types';
 import { sendEmail, getAdminEmails } from '@/lib/email/resend';
@@ -27,12 +27,15 @@ export async function getCheckoutData(cartItems: { productId: string; variantId?
     return { products: [], variants: [], conversionRate: 100, pointsBalance: 0 };
   }
 
-  const user = await getCurrentUser();
-  if (!user) {
+  const supabase = await createClient();
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  const userId = session?.access_token ? getJwtSubject(session.access_token) : null;
+  if (!userId) {
     return { products: [], variants: [], conversionRate: 100, pointsBalance: 0 };
   }
 
-  const supabase = await createClient();
   const productIds = [...new Set(cartItems.map(item => item.productId))];
   
   // Fetch all data in parallel for maximum speed
@@ -40,7 +43,7 @@ export async function getCheckoutData(cartItems: { productId: string; variantId?
     getStoreSettings(),
     getProductsByIds(productIds),
     getVariantsByProductIds(productIds),
-    supabase.rpc('get_user_points_balance', { p_user_id: user.id }),
+    supabase.rpc('get_user_points_balance', { p_user_id: userId }),
   ]);
 
   return {
@@ -64,8 +67,12 @@ export async function placeOrder(formData: FormData): Promise<PlaceOrderResult> 
       };
     }
 
+    const supabase = await createClient();
+
     // Get current user
-    const user = await getCurrentUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     if (!user) {
       return { success: false, error: 'Authentication required' };
     }
@@ -122,8 +129,6 @@ export async function placeOrder(formData: FormData): Promise<PlaceOrderResult> 
       }
     }
 
-    const supabase = await createClient();
-
     // Prepare items for RPC call
     const items = Array.from(normalizedItems.values()).map((item) => ({
       product_id: item.productId,
@@ -174,7 +179,7 @@ export async function placeOrder(formData: FormData): Promise<PlaceOrderResult> 
       // Get order details for email
       const { data: orderDetails } = await supabase
         .from('orders')
-        .select('*')
+        .select('id, total_points, delivery_method, created_at')
         .eq('id', orderId)
         .single();
       

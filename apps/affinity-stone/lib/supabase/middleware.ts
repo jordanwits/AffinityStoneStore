@@ -6,6 +6,30 @@ export async function updateSession(request: NextRequest) {
     request,
   });
 
+  const pathname = request.nextUrl.pathname;
+
+  // Only run Supabase session refresh logic on routes that actually need auth state.
+  // This avoids a network roundtrip on marketing/static pages and reduces click-to-open latency.
+  const isAppRoute =
+    pathname.startsWith('/dashboard') ||
+    pathname.startsWith('/catalog') ||
+    pathname.startsWith('/product') ||
+    pathname.startsWith('/cart') ||
+    pathname.startsWith('/checkout') ||
+    pathname.startsWith('/orders') ||
+    pathname.startsWith('/points-history') ||
+    pathname.startsWith('/admin');
+
+  const isAuthRoute =
+    pathname.startsWith('/login') ||
+    pathname.startsWith('/logout') ||
+    pathname.startsWith('/update-password') ||
+    pathname.startsWith('/forgot-password');
+
+  if (!isAppRoute && !isAuthRoute) {
+    return supabaseResponse;
+  }
+
   // Use placeholder values if not configured (dev mode)
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co';
   const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBsYWNlaG9sZGVyIiwicm9sZSI6ImFub24iLCJpYXQiOjE2NDUxOTI4MDAsImV4cCI6MTk2MDc2ODgwMH0.placeholder';
@@ -32,34 +56,34 @@ export async function updateSession(request: NextRequest) {
     },
   });
 
-  // Refreshing the auth token
+  // Avoid calling the Supabase Auth API on every request.
+  // We can usually trust the session cookie and only refresh when nearing expiry.
+  const refreshGraceMs = 2 * 60 * 1000; // refresh if expiring in next 2 minutes
+
   const {
-    data: { user },
-  } = await supabase.auth.getUser();
+    data: { session },
+  } = await supabase.auth.getSession();
 
-  // Protected routes - require authentication
-  const isAppRoute = request.nextUrl.pathname.startsWith('/dashboard') ||
-                     request.nextUrl.pathname.startsWith('/catalog') ||
-                     request.nextUrl.pathname.startsWith('/product') ||
-                     request.nextUrl.pathname.startsWith('/cart') ||
-                     request.nextUrl.pathname.startsWith('/checkout') ||
-                     request.nextUrl.pathname.startsWith('/orders') ||
-                     request.nextUrl.pathname.startsWith('/points-history') ||
-                     request.nextUrl.pathname.startsWith('/admin');
+  const expiresAtMs = session?.expires_at ? session.expires_at * 1000 : 0;
+  const shouldRefresh = !session || (expiresAtMs > 0 && expiresAtMs - Date.now() < refreshGraceMs);
 
-  const isAuthRoute = request.nextUrl.pathname.startsWith('/login') ||
-                      request.nextUrl.pathname.startsWith('/logout') ||
-                      request.nextUrl.pathname.startsWith('/update-password') ||
-                      request.nextUrl.pathname.startsWith('/forgot-password');
+  let isAuthenticated = Boolean(session?.access_token);
 
-  if (isAppRoute && !user) {
+  if (shouldRefresh) {
+    const {
+      data: { user: refreshedUser },
+    } = await supabase.auth.getUser();
+    isAuthenticated = Boolean(refreshedUser);
+  }
+
+  if (isAppRoute && !isAuthenticated) {
     // Redirect to login if trying to access protected route without auth
     const url = request.nextUrl.clone();
     url.pathname = '/login';
     return NextResponse.redirect(url);
   }
 
-  if (isAuthRoute && user) {
+  if (isAuthRoute && isAuthenticated) {
     // Redirect to dashboard if already logged in and trying to access login
     // But allow /update-password to process password reset tokens
     if (request.nextUrl.pathname === '/login') {
