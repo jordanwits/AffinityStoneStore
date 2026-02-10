@@ -210,9 +210,9 @@ export default function CheckoutPageClient({
 
       {/* Progress Steps */}
       <div className="mb-8">
-        <div className="flex items-center justify-center gap-4">
+        <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-4">
           <div className="flex items-center">
-            <div className={`flex items-center justify-center w-10 h-10 rounded-full font-bold ${
+            <div className={`flex items-center justify-center w-10 h-10 rounded-full font-bold shrink-0 ${
               currentStep === 1 
                 ? 'bg-secondary text-secondary-foreground' 
                 : 'bg-primary text-white'
@@ -225,29 +225,32 @@ export default function CheckoutPageClient({
                 '1'
               )}
             </div>
-            <span className={`ml-2 text-sm font-medium ${
+            <span className={`ml-2 text-xs sm:text-sm font-medium whitespace-nowrap ${
               currentStep === 1 ? 'text-gray-900' : 'text-gray-600'
-            }`}>Delivery Options</span>
+            }`}>
+              <span className="sm:hidden">Delivery</span>
+              <span className="hidden sm:inline">Delivery Options</span>
+            </span>
           </div>
-          <div className={`w-16 h-0.5 ${currentStep >= 2 ? 'bg-secondary' : 'bg-gray-300'}`} />
+          <div className={`hidden sm:block w-16 h-0.5 ${currentStep >= 2 ? 'bg-secondary' : 'bg-gray-300'}`} />
           <div className="flex items-center">
-            <div className={`flex items-center justify-center w-10 h-10 rounded-full font-bold ${
+            <div className={`flex items-center justify-center w-10 h-10 rounded-full font-bold shrink-0 ${
               currentStep === 2 
                 ? 'bg-secondary text-secondary-foreground' 
                 : 'bg-gray-200 text-gray-600'
             }`}>
               2
             </div>
-            <span className={`ml-2 text-sm font-medium ${
+            <span className={`ml-2 text-xs sm:text-sm font-medium whitespace-nowrap ${
               currentStep === 2 ? 'text-gray-900' : 'text-gray-500'
             }`}>Review</span>
           </div>
-          <div className="w-16 h-0.5 bg-gray-300" />
+          <div className="hidden sm:block w-16 h-0.5 bg-gray-300" />
           <div className="flex items-center">
-            <div className="flex items-center justify-center w-10 h-10 rounded-full bg-gray-200 text-gray-600 font-bold">
+            <div className="flex items-center justify-center w-10 h-10 rounded-full bg-gray-200 text-gray-600 font-bold shrink-0">
               3
             </div>
-            <span className="ml-2 text-sm font-medium text-gray-500">Complete</span>
+            <span className="ml-2 text-xs sm:text-sm font-medium text-gray-500 whitespace-nowrap">Complete</span>
           </div>
         </div>
       </div>

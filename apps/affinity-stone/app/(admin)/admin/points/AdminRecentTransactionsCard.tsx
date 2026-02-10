@@ -76,9 +76,9 @@ export async function AdminRecentTransactionsCard({ isDevMode }: AdminRecentTran
   return (
     <Card>
       <CardHeader className="bg-gray-50">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-4">
           <h2 className="text-lg font-semibold text-gray-900">Recent Transactions</h2>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Badge variant="default">Last 30 days</Badge>
             {recentCount > 0 && (
               <Badge variant="default">{recentCount} total</Badge>
@@ -89,57 +89,54 @@ export async function AdminRecentTransactionsCard({ isDevMode }: AdminRecentTran
       <CardContent>
         {recentTransactions && recentTransactions.length > 0 ? (
           <>
-            <div className="divide-y">
+            <div className="divide-y divide-gray-200">
               {recentTransactions.map((entry) => (
                 <div
                   key={entry.id}
-                  className="flex items-start justify-between py-4 first:pt-0 last:pb-0 hover:bg-gray-50 -mx-6 px-6 transition-colors"
+                  className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 py-4 first:pt-0 last:pb-0"
                 >
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-3 mb-2">
-                      {entry.delta_points > 0 ? (
-                        <div className="flex-shrink-0 w-8 h-8 rounded-full bg-green-100 flex items-center justify-center">
-                          <svg className="w-4 h-4 text-green-600" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v3.586l-1.293-1.293a1 1 0 00-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 10.586V7z" clipRule="evenodd" transform="rotate(180 10 10)" />
-                          </svg>
-                        </div>
-                      ) : (
-                        <div className="flex-shrink-0 w-8 h-8 rounded-full bg-red-100 flex items-center justify-center">
-                          <svg className="w-4 h-4 text-red-600" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v3.586L7.707 9.293a1 1 0 00-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 10.586V7z" clipRule="evenodd" />
-                          </svg>
-                        </div>
-                      )}
-                      <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-gray-900 truncate">{entry.reason}</p>
-                        <div className="flex items-center gap-2 mt-0.5">
-                          <p className="text-sm text-gray-500">
-                            {entry.profiles?.email || 'Unknown user'}
-                          </p>
-                          <span className="text-gray-400">•</span>
-                          <p className="text-sm text-gray-500">
-                            {new Date(entry.created_at).toLocaleDateString('en-US', { 
-                              month: 'short', 
-                              day: 'numeric', 
-                              year: 'numeric',
-                              hour: 'numeric',
-                              minute: '2-digit'
-                            })}
-                          </p>
-                        </div>
+                  <div className="flex-1 min-w-0 flex gap-3">
+                    {entry.delta_points > 0 ? (
+                      <div className="flex-shrink-0 w-8 h-8 rounded-full bg-green-100 flex items-center justify-center">
+                        <svg className="w-4 h-4 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v3.586l-1.293-1.293a1 1 0 00-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 10.586V7z" clipRule="evenodd" transform="rotate(180 10 10)" />
+                        </svg>
+                      </div>
+                    ) : (
+                      <div className="flex-shrink-0 w-8 h-8 rounded-full bg-red-100 flex items-center justify-center">
+                        <svg className="w-4 h-4 text-red-600" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v3.586L7.707 9.293a1 1 0 00-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 10.586V7z" clipRule="evenodd" />
+                        </svg>
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0 overflow-hidden">
+                      <p className="font-semibold text-gray-900 truncate">{entry.reason}</p>
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:gap-2 mt-0.5 gap-0.5">
+                        <p className="text-sm text-gray-500 truncate">
+                          {entry.profiles?.email || 'Unknown user'}
+                        </p>
+                        <p className="text-sm text-gray-500">
+                          {new Date(entry.created_at).toLocaleDateString('en-US', { 
+                            month: 'short', 
+                            day: 'numeric', 
+                            year: 'numeric',
+                            hour: 'numeric',
+                            minute: '2-digit'
+                          })}
+                        </p>
                       </div>
                     </div>
                   </div>
-                  <div className="text-right ml-4 flex-shrink-0">
+                  <div className="flex items-center justify-between sm:justify-end sm:flex-col sm:items-end gap-2 sm:gap-0 sm:ml-4 sm:flex-shrink-0">
                     <p
-                      className={`text-2xl font-bold ${
+                      className={`text-xl sm:text-2xl font-bold ${
                         entry.delta_points > 0 ? 'text-green-600' : 'text-red-600'
                       }`}
                     >
                       {entry.delta_points > 0 ? '+' : ''}
                       {entry.delta_points.toLocaleString()}
                     </p>
-                    <p className="text-xs text-gray-500 mt-1">points</p>
+                    <p className="text-xs text-gray-500">points</p>
                   </div>
                 </div>
               ))}

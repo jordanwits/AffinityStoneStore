@@ -1,4 +1,5 @@
 import { getSiteUrl } from './resend';
+import { getTrackingUrl } from '@/lib/tracking';
 
 interface OrderData {
   orderId: string;
@@ -182,7 +183,10 @@ export function customerOrderStatusEmail(order: OrderStatusData) {
     ${order.trackingNumber ? `
       <div style="margin-top: 15px; padding: 15px; background-color: #f3f4f6; border-radius: 6px;">
         <p style="margin: 0 0 5px 0; font-size: 14px; color: #666;">Tracking Number:</p>
-        <p style="margin: 0; font-family: monospace; font-size: 16px; font-weight: bold;">${order.trackingNumber}</p>
+        <p style="margin: 0;">
+          <a href="${getTrackingUrl(order.trackingNumber)}" style="font-family: monospace; font-size: 16px; font-weight: bold; color: #2563eb; text-decoration: underline;">${order.trackingNumber}</a>
+        </p>
+        <p style="margin: 5px 0 0 0; font-size: 12px; color: #666;">Click the tracking number to track your package</p>
       </div>
     ` : ''}
   </div>
@@ -237,7 +241,9 @@ export function adminOrderStatusEmail(order: OrderStatusData) {
       ${order.trackingNumber ? `
       <tr>
         <td style="padding: 8px 0;"><strong>Tracking:</strong></td>
-        <td style="padding: 8px 0; text-align: right; font-family: monospace;">${order.trackingNumber}</td>
+        <td style="padding: 8px 0; text-align: right;">
+          <a href="${getTrackingUrl(order.trackingNumber)}" style="font-family: monospace; color: #2563eb; text-decoration: underline;">${order.trackingNumber}</a>
+        </td>
       </tr>
       ` : ''}
     </table>

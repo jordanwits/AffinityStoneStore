@@ -8,6 +8,7 @@ import PointsAdjustmentForm from './PointsAdjustmentForm';
 import { BulkPointsUpload } from './BulkPointsUpload';
 import { AdminHistoryFilters } from './AdminHistoryFilters';
 import { AdminRecentTransactionsCard } from './AdminRecentTransactionsCard';
+import { FilterDrawer } from 'core/components/FilterDrawer';
 
 interface AdminPointsPageProps {
   searchParams: Promise<{
@@ -256,12 +257,14 @@ export default async function AdminPointsPage({ searchParams }: AdminPointsPageP
 
   return (
     <div>
-      <div className="flex justify-between items-start mb-8">
-        <div>
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4 mb-8">
+        <div className="min-w-0">
           <h1 className="text-3xl font-bold text-gray-900">Points</h1>
           <p className="text-gray-600 mt-1">Manage user points and transactions</p>
         </div>
-        <BulkPointsUpload isDevMode={isDevMode} />
+        <div className="shrink-0">
+          <BulkPointsUpload isDevMode={isDevMode} />
+        </div>
       </div>
 
       <Card className="mb-6">
@@ -280,12 +283,16 @@ export default async function AdminPointsPage({ searchParams }: AdminPointsPageP
 
       {/* Extended History Section */}
       <div className="flex flex-col lg:flex-row gap-4">
-        {/* Left Sidebar - Filters */}
-        <aside className="lg:w-52 flex-shrink-0">
+        {/* Left Sidebar - Filters (desktop) / Slide-in drawer (mobile) */}
+        <FilterDrawer
+          triggerLabel="Filters"
+          hasActiveFilters={!!(startDate || endDate || type !== 'all' || minPoints || maxPoints || reason || userEmail)}
+          wrapperClassName="lg:w-52"
+        >
           <div className="sticky top-24 pt-4">
             <AdminHistoryFilters currentDays={daysFilter || undefined} />
           </div>
-        </aside>
+        </FilterDrawer>
 
         {/* Main Content */}
         <div className="flex-1 min-w-0">
@@ -340,89 +347,86 @@ export default async function AdminPointsPage({ searchParams }: AdminPointsPageP
           {/* Extended Transaction History */}
           <Card>
             <CardHeader className="bg-gray-50">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                 <h2 className="text-lg font-semibold text-gray-900">Transaction History</h2>
-                <Badge variant="default">{totalCount} {getFilterLabel()}</Badge>
+                <Badge variant="default" className="w-fit">{totalCount} {getFilterLabel()}</Badge>
               </div>
             </CardHeader>
             <CardContent>
               {transactions && transactions.length > 0 ? (
                 <>
-                  <div className="divide-y">
+                  <div className="divide-y divide-gray-200">
                     {transactions.map((entry: any) => {
                       const hasOrderLink = !!entry.order_id;
                       return (
                         <div
                           key={entry.id}
-                          className={`flex items-start justify-between py-4 first:pt-0 last:pb-0 hover:bg-gray-50 -mx-6 px-6 transition-colors ${hasOrderLink ? 'group cursor-pointer' : ''}`}
+                          className={`flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 py-4 first:pt-0 last:pb-0 ${hasOrderLink ? 'group cursor-pointer' : ''}`}
                         >
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-3 mb-2">
-                              {entry.delta_points > 0 ? (
-                                <div className="flex-shrink-0 w-8 h-8 rounded-full bg-green-100 flex items-center justify-center">
-                                  <svg className="w-4 h-4 text-green-600" fill="currentColor" viewBox="0 0 20 20">
-                                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v3.586l-1.293-1.293a1 1 0 00-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 10.586V7z" clipRule="evenodd" transform="rotate(180 10 10)" />
-                                  </svg>
-                                </div>
-                              ) : (
-                                <div className="flex-shrink-0 w-8 h-8 rounded-full bg-red-100 flex items-center justify-center">
-                                  <svg className="w-4 h-4 text-red-600" fill="currentColor" viewBox="0 0 20 20">
-                                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v3.586L7.707 9.293a1 1 0 00-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 10.586V7z" clipRule="evenodd" />
-                                  </svg>
-                                </div>
-                              )}
-                              <div className="flex-1 min-w-0">
-                                <p className="font-semibold text-gray-900 truncate">
-                                  {hasOrderLink ? (
-                                    <Link href={`/admin/orders/${entry.order_id}`} className="group-hover:text-primary transition-colors">
-                                      {entry.reason}
-                                      <svg 
-                                        className="w-4 h-4 text-blue-600 inline-block ml-2" 
-                                        fill="none" 
-                                        stroke="currentColor" 
-                                        viewBox="0 0 24 24"
-                                        aria-label="Linked to order"
-                                      >
-                                        <path 
-                                          strokeLinecap="round" 
-                                          strokeLinejoin="round" 
-                                          strokeWidth={2} 
-                                          d="M13 7l5 5m0 0l-5 5m5-5H6" 
-                                        />
-                                      </svg>
-                                    </Link>
-                                  ) : (
-                                    entry.reason
-                                  )}
+                          <div className="flex-1 min-w-0 flex gap-3">
+                            {entry.delta_points > 0 ? (
+                              <div className="flex-shrink-0 w-8 h-8 rounded-full bg-green-100 flex items-center justify-center">
+                                <svg className="w-4 h-4 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v3.586l-1.293-1.293a1 1 0 00-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 10.586V7z" clipRule="evenodd" transform="rotate(180 10 10)" />
+                                </svg>
+                              </div>
+                            ) : (
+                              <div className="flex-shrink-0 w-8 h-8 rounded-full bg-red-100 flex items-center justify-center">
+                                <svg className="w-4 h-4 text-red-600" fill="currentColor" viewBox="0 0 20 20">
+                                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v3.586L7.707 9.293a1 1 0 00-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 10.586V7z" clipRule="evenodd" />
+                                </svg>
+                              </div>
+                            )}
+                            <div className="flex-1 min-w-0 overflow-hidden">
+                              <p className="font-semibold text-gray-900 truncate">
+                                {hasOrderLink ? (
+                                  <Link href={`/admin/orders/${entry.order_id}`} className="group-hover:text-primary transition-colors">
+                                    {entry.reason}
+                                    <svg 
+                                      className="w-4 h-4 text-blue-600 inline-block ml-2" 
+                                      fill="none" 
+                                      stroke="currentColor" 
+                                      viewBox="0 0 24 24"
+                                      aria-label="Linked to order"
+                                    >
+                                      <path 
+                                        strokeLinecap="round" 
+                                        strokeLinejoin="round" 
+                                        strokeWidth={2} 
+                                        d="M13 7l5 5m0 0l-5 5m5-5H6" 
+                                      />
+                                    </svg>
+                                  </Link>
+                                ) : (
+                                  entry.reason
+                                )}
+                              </p>
+                              <div className="flex flex-col sm:flex-row sm:items-center sm:gap-2 mt-0.5 gap-0.5">
+                                <p className="text-sm text-gray-500 truncate">
+                                  {entry.profiles?.email || 'Unknown user'}
                                 </p>
-                                <div className="flex items-center gap-2 mt-0.5">
-                                  <p className="text-sm text-gray-500">
-                                    {entry.profiles?.email || 'Unknown user'}
-                                  </p>
-                                  <span className="text-gray-400">•</span>
-                                  <p className="text-sm text-gray-500">
-                                    {new Date(entry.created_at).toLocaleDateString('en-US', { 
-                                      month: 'short', 
-                                      day: 'numeric', 
-                                      year: 'numeric',
-                                      hour: 'numeric',
-                                      minute: '2-digit'
-                                    })}
-                                  </p>
-                                </div>
+                                <p className="text-sm text-gray-500">
+                                  {new Date(entry.created_at).toLocaleDateString('en-US', { 
+                                    month: 'short', 
+                                    day: 'numeric', 
+                                    year: 'numeric',
+                                    hour: 'numeric',
+                                    minute: '2-digit'
+                                  })}
+                                </p>
                               </div>
                             </div>
                           </div>
-                          <div className="text-right ml-4 flex-shrink-0">
+                          <div className="flex items-center justify-between sm:justify-end sm:flex-col sm:items-end gap-2 sm:gap-0 sm:ml-4 sm:flex-shrink-0">
                             <p
-                              className={`text-2xl font-bold ${
+                              className={`text-xl sm:text-2xl font-bold ${
                                 entry.delta_points > 0 ? 'text-green-600' : 'text-red-600'
                               }`}
                             >
                               {entry.delta_points > 0 ? '+' : ''}
                               {entry.delta_points.toLocaleString()}
                             </p>
-                            <p className="text-xs text-gray-500 mt-1">points</p>
+                            <p className="text-xs text-gray-500">points</p>
                           </div>
                         </div>
                       );

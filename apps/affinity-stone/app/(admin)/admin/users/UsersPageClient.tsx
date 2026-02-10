@@ -33,8 +33,8 @@ export function UsersPageClient({ isDevMode, users, currentAdminId }: UsersPageC
         isDevMode={isDevMode}
       />
 
-      <div className="flex justify-between items-start mb-8">
-        <div>
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4 mb-8">
+        <div className="min-w-0">
           <h1 className="text-3xl font-bold text-gray-900">Users</h1>
           <p className="text-gray-600 mt-1">Manage user accounts and permissions</p>
         </div>
@@ -42,6 +42,7 @@ export function UsersPageClient({ isDevMode, users, currentAdminId }: UsersPageC
           variant="primary"
           onClick={() => setIsCreateModalOpen(true)}
           disabled={isDevMode}
+          className="w-full sm:w-auto shrink-0"
         >
           <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />

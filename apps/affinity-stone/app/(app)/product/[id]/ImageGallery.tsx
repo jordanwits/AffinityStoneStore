@@ -19,20 +19,25 @@ interface ImageGalleryProps {
 export default function ImageGallery({ images, productName, variants = [], selectedColor }: ImageGalleryProps) {
   const [selectedIndex, setSelectedIndex] = useState(0);
   
-  // Build complete image array including variant images - memoized to prevent unnecessary recalculations
+  // Build complete image array - when color variants have images, use ONLY one per color (no duplicates)
   const allImages = useMemo(() => {
-    const imageSet = new Set(images);
-    const result = [...images];
+    const colorVariantsWithImages = variants.filter(v => v.color && v.image_url);
     
-    // Add color variant images that aren't already in the main images array
-    variants.forEach(v => {
-      if (v.image_url && !imageSet.has(v.image_url)) {
-        result.push(v.image_url);
-        imageSet.add(v.image_url);
+    // If we have color variants with images, use ONLY those (one per color) - avoids product + variant duplicate images
+    if (colorVariantsWithImages.length > 0) {
+      const seen = new Set<string>();
+      const result: string[] = [];
+      for (const v of colorVariantsWithImages) {
+        if (v.image_url && !seen.has(v.color!)) {
+          seen.add(v.color!);
+          result.push(v.image_url);
+        }
       }
-    });
+      return result;
+    }
     
-    return result;
+    // No color variant images - use product images
+    return [...images];
   }, [images, variants]);
 
   // When color changes, switch to that color's image
@@ -94,7 +99,7 @@ export default function ImageGallery({ images, productName, variants = [], selec
           <>
             <button
               onClick={handlePrevious}
-              className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white text-gray-800 rounded-full p-3 shadow-lg opacity-0 group-hover:opacity-100 transition-all duration-200 hover:scale-110 focus:outline-none focus:ring-2 focus:ring-primary"
+              className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white text-gray-800 rounded-full p-3 shadow-lg opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-all duration-200 hover:scale-110 focus:outline-none focus:ring-2 focus:ring-primary"
               aria-label="Previous image"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -103,7 +108,7 @@ export default function ImageGallery({ images, productName, variants = [], selec
             </button>
             <button
               onClick={handleNext}
-              className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white text-gray-800 rounded-full p-3 shadow-lg opacity-0 group-hover:opacity-100 transition-all duration-200 hover:scale-110 focus:outline-none focus:ring-2 focus:ring-primary"
+              className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white text-gray-800 rounded-full p-3 shadow-lg opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-all duration-200 hover:scale-110 focus:outline-none focus:ring-2 focus:ring-primary"
               aria-label="Next image"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

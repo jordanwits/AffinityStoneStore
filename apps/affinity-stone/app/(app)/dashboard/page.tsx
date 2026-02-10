@@ -6,6 +6,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { StorefrontControls } from './StorefrontControls';
 import { FilterPanel } from './FilterPanel';
+import { FilterDrawer } from 'core/components/FilterDrawer';
 import { getStoreSettings, getFilterMetadata } from '@/lib/cache/store-data';
 
 // Enable aggressive caching: Revalidate this page every 5 minutes
@@ -342,42 +343,68 @@ export default async function DashboardPage({
 
   const hasActiveFilters = !!(params.q || params.category || params.collections || params.size || params.color || params.minUsd || params.maxUsd);
 
+  const pointsBalanceCard = (
+    <div className="bg-gradient-to-br from-primary/10 to-secondary/10 rounded-lg py-4 mb-3">
+      <p className="text-xs font-semibold text-gray-600 mb-1 uppercase tracking-wide">Your Points</p>
+      <p className="text-3xl font-bold text-primary">{pointsBalance.toLocaleString()}</p>
+      <Link href="/points-history" className="text-xs text-secondary hover:text-secondary/80 font-bold inline-flex items-center gap-1 mt-2 transition-colors">
+        View History
+        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+        </svg>
+      </Link>
+    </div>
+  );
+
+  const filterContent = (
+    <div className="sticky top-16 pt-4 space-y-3 lg:pt-4">
+      {/* Points Balance - desktop sidebar only */}
+      <div className="hidden lg:block">{pointsBalanceCard}</div>
+      {/* Filter Controls */}
+      <FilterPanel 
+        allCategories={allCategories}
+        allCollections={allCollections}
+        allSizes={allSizes}
+        allColors={allColors}
+        hasActiveFilters={hasActiveFilters}
+      />
+    </div>
+  );
+
   return (
     <div className="flex flex-col lg:flex-row gap-4">
-      {/* Left Sidebar - Filters */}
-      <aside className="lg:w-52 flex-shrink-0">
-        <div className="sticky top-16 pt-4 space-y-3">
-          {/* Points Balance Summary */}
-          <div className="bg-gradient-to-br from-primary/10 to-secondary/10 rounded-lg py-4 mb-3">
-            <p className="text-xs font-semibold text-gray-600 mb-1 uppercase tracking-wide">Your Points</p>
-            <p className="text-3xl font-bold text-primary">{pointsBalance.toLocaleString()}</p>
-            <Link href="/points-history" className="text-xs text-secondary hover:text-secondary/80 font-bold inline-flex items-center gap-1 mt-2 transition-colors">
-              View History
-              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              </svg>
-            </Link>
-          </div>
-
-          {/* Filter Controls */}
-          <FilterPanel 
-            allCategories={allCategories}
-            allCollections={allCollections}
-            allSizes={allSizes}
-            allColors={allColors}
+      {/* Points Balance - mobile only */}
+      <div className="lg:hidden">{pointsBalanceCard}</div>
+      {/* Desktop: sidebar | Main. Mobile: Main only */}
+      <div className="flex flex-col lg:flex-row gap-4 flex-1 min-w-0">
+        {/* Desktop sidebar - Filters */}
+        <div className="hidden lg:block flex-shrink-0">
+          <FilterDrawer
+            triggerLabel="Filters"
             hasActiveFilters={hasActiveFilters}
-          />
+            wrapperClassName="lg:w-52"
+          >
+            {filterContent}
+          </FilterDrawer>
         </div>
-      </aside>
-
-      {/* Main Content - Product Grid */}
-      <div className="flex-1 min-w-0">
-        {/* Search and Sort Bar */}
-        <div className="mb-5 space-y-3">
-          <StorefrontControls currentSort={params.sort || 'featured'} />
-          
-          {/* Results count and active filters */}
-          <div className="flex items-center justify-between flex-wrap gap-4">
+        {/* Main content - search row + product grid full width */}
+        <div className="flex-1 min-w-0 flex flex-col gap-4">
+        {/* Search row - Filters button to right of search on mobile */}
+        <div className="flex flex-row gap-3 items-start shrink-0">
+          <div className="flex-1 min-w-0 order-1 lg:order-2">
+            <StorefrontControls currentSort={params.sort || 'featured'} />
+          </div>
+          <div className="order-2 lg:order-1 flex-shrink-0 lg:hidden">
+            <FilterDrawer
+              triggerLabel="Filters"
+              hasActiveFilters={hasActiveFilters}
+            >
+              {filterContent}
+            </FilterDrawer>
+          </div>
+        </div>
+        {/* Results count and active filters - full width */}
+        <div className="flex items-center justify-between flex-wrap gap-4">
             <h2 className="text-xl font-bold text-gray-900">
               {params.category || 'All Products'} ({products.length})
             </h2>
@@ -407,12 +434,11 @@ export default async function DashboardPage({
                 )}
               </div>
             )}
-          </div>
         </div>
 
         {/* Product Grid */}
         {products && products.length > 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-x-3 gap-y-10">
+          <div className="grid grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-x-3 gap-y-10">
             {products.map((product) => {
               const pointsPrice = Math.round(product.base_usd * conversionRate);
               const isNew = product.collections?.includes('New Arrivals');
@@ -479,6 +505,7 @@ export default async function DashboardPage({
             )}
           </div>
         )}
+        </div>
       </div>
     </div>
   );

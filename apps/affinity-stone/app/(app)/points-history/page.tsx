@@ -8,6 +8,7 @@ import { Button } from 'core/components/Button';
 import Link from 'next/link';
 import { RecentTransactionsCard } from './RecentTransactionsCard';
 import { HistoryFilters } from './HistoryFilters';
+import { FilterDrawer } from 'core/components/FilterDrawer';
 
 // Cache points history for 2 minutes (points are user-specific and update frequently)
 export const revalidate = 120;
@@ -246,12 +247,16 @@ export default async function PointsHistoryPage({ searchParams }: PointsHistoryP
 
       {/* Extended History Section */}
       <div className="flex flex-col lg:flex-row gap-4">
-        {/* Left Sidebar - Filters */}
-        <aside className="lg:w-52 flex-shrink-0">
+        {/* Left Sidebar - Filters (desktop) / Slide-in drawer (mobile) */}
+        <FilterDrawer
+          triggerLabel="Filters"
+          hasActiveFilters={!!(startDate || endDate || type !== 'all' || minPoints || maxPoints || reason)}
+          wrapperClassName="lg:w-52"
+        >
           <div className="sticky top-24 pt-4">
             <HistoryFilters currentDays={daysFilter || undefined} />
           </div>
-        </aside>
+        </FilterDrawer>
 
         {/* Main Content */}
         <div className="flex-1 min-w-0">

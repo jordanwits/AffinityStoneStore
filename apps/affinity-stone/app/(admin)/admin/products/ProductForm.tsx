@@ -297,18 +297,58 @@ export function ProductForm({ mode, productId, initialData, isDevMode }: Product
           </div>
           
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Image URLs
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Product Images
             </label>
+            {(() => {
+              const imageUrls = imagesInput
+                .split('\n')
+                .map((s) => s.trim())
+                .filter(Boolean);
+              return imageUrls.length > 0 ? (
+                <div className="flex flex-wrap gap-3 mb-4">
+                  {imageUrls.map((url, index) => (
+                    <div
+                      key={`${url}-${index}`}
+                      className="relative group flex-shrink-0"
+                    >
+                      <div className="w-20 h-20 rounded-lg border border-gray-200 overflow-hidden bg-gray-100">
+                        <img
+                          src={url}
+                          alt={`Product ${index + 1}`}
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="80" height="80" viewBox="0 0 80 80"><rect fill="%23e5e7eb" width="80" height="80"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" fill="%239ca3af" font-size="10" font-family="sans-serif">?</text></svg>';
+                          }}
+                        />
+                      </div>
+                      {!isDevMode && !loading && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const rest = imageUrls.filter((_, i) => i !== index);
+                            setImagesInput(rest.join('\n'));
+                          }}
+                          className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-red-600 text-white text-xs font-bold flex items-center justify-center hover:bg-red-700 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity"
+                          aria-label="Remove image"
+                        >
+                          ×
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : null;
+            })()}
             <textarea
               value={imagesInput}
               onChange={(e) => setImagesInput(e.target.value)}
               disabled={isDevMode || loading}
-              placeholder="/product-image.jpg&#10;https://your-domain.supabase.co/storage/v1/object/public/products/image.jpg"
-              rows={4}
+              placeholder="Paste image URLs, one per line. Or upload above."
+              rows={2}
               className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary disabled:bg-gray-100 disabled:cursor-not-allowed font-mono text-sm"
             />
-            <p className="text-xs text-gray-600 mt-1">One URL per line. Uploaded images appear here automatically, or paste URLs manually</p>
+            <p className="text-xs text-gray-600 mt-1">One URL per line. Uploaded images appear above as previews</p>
           </div>
         </CardContent>
       </Card>

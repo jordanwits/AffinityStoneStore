@@ -108,3 +108,124 @@ export async function updateOrderStatus(data: UpdateOrderStatusData) {
   
   return { success: true };
 }
+
+export async function deleteOrder(orderId: string) {
+  const isDevMode = !process.env.NEXT_PUBLIC_SUPABASE_URL ||
+    process.env.NEXT_PUBLIC_SUPABASE_URL.includes('placeholder');
+
+  if (isDevMode) {
+    return { success: false, error: 'Order operations require Supabase to be configured.' };
+  }
+
+  const { supabase } = await requireAdmin();
+
+  const { data: order, error: fetchError } = await supabase
+    .from('orders')
+    .select('id')
+    .eq('id', orderId)
+    .single();
+
+  if (fetchError || !order) {
+    return { success: false, error: 'Order not found' };
+  }
+
+  const { error: deleteError } = await supabase.from('orders').delete().eq('id', orderId);
+
+  if (deleteError) {
+    console.error('Error deleting order:', deleteError);
+    return { success: false, error: 'Failed to delete order' };
+  }
+
+  revalidatePath('/admin/orders');
+  revalidatePath('/orders');
+  return { success: true };
+}
+
+export async function refundOrder(
+  orderId: string,
+  options: { withReturn: boolean }
+) {
+  const isDevMode = !process.env.NEXT_PUBLIC_SUPABASE_URL ||
+    process.env.NEXT_PUBLIC_SUPABASE_URL.includes('placeholder');
+
+  if (isDevMode) {
+    return { success: false, error: 'Order operations require Supabase to be configured.' };
+  }
+
+  const { supabase, user } = await requireAdmin();
+
+  const { data: order, error: orderError } = await supabase
+    .from('orders')
+    .select('id, user_id, total_points')
+    .eq('id', orderId)
+    .single();
+
+  if (orderError || !order) {
+    return { success: false, error: 'Order not found' };
+  }
+
+  // Prevent double refund
+  const { data: existingRefunds } = await supabase
+    .from('points_ledger')
+    .select('id')
+    .eq('order_id', orderId)
+    .gt('delta_points', 0);
+
+  if (existingRefunds && existingRefunds.length > 0) {
+    return { success: false, error: 'This order has already been refunded' };
+  }
+
+  // Refund points
+  const { error: refundError } = await supabase.from('points_ledger').insert({
+    user_id: order.user_id,
+    delta_points: order.total_points,
+    reason: `Refund${options.withReturn ? ' (with return)' : ''} for order #${orderId.slice(0, 8).toUpperCase()}`,
+    order_id: orderId,
+    created_by: user.id,
+  });
+
+  if (refundError) {
+    console.error('Error refunding points:', refundError);
+    return { success: false, error: 'Failed to refund points' };
+  }
+
+  if (options.withReturn) {
+    const { data: items } = await supabase
+      .from('order_items')
+      .select('variant_id, quantity')
+      .eq('order_id', orderId);
+
+    if (items && items.length > 0) {
+      for (const item of items) {
+        if (item.variant_id) {
+          const { data: variant } = await supabase
+            .from('product_variants')
+            .select('inventory_count')
+            .eq('id', item.variant_id)
+            .single();
+
+          if (variant && variant.inventory_count !== null) {
+            await supabase
+              .from('product_variants')
+              .update({
+                inventory_count: variant.inventory_count + item.quantity,
+              })
+              .eq('id', item.variant_id);
+          }
+        }
+      }
+    }
+  }
+
+  // Mark order as cancelled
+  await supabase
+    .from('orders')
+    .update({ status: 'cancelled' })
+    .eq('id', orderId);
+
+  revalidatePath('/admin/orders');
+  revalidatePath(`/admin/orders/${orderId}`);
+  revalidatePath('/orders');
+  revalidatePath(`/orders/${orderId}`);
+  return { success: true };
+}

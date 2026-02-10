@@ -37,17 +37,17 @@ export default function MarketingHeaderActions() {
   }
 
   return (
-    <div className="flex items-center gap-3">
+    <div className="flex flex-wrap justify-end gap-2 sm:gap-3 min-w-0">
       {hasUser ? (
-        <Link href="/dashboard">
+        <Link href="/dashboard" className="shrink-0">
           <Button variant="primary">Go to Dashboard</Button>
         </Link>
       ) : (
         <>
-          <Link href="/login">
+          <Link href="/login" className="shrink-0">
             <Button variant="outline">Login</Button>
           </Link>
-          <Link href="/request-access">
+          <Link href="/request-access" className="shrink-0">
             <Button variant="primary">Request Access</Button>
           </Link>
         </>

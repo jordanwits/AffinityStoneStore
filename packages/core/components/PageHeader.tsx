@@ -14,7 +14,7 @@ export function PageHeader({ title, subtitle, actions, className = '' }: PageHea
         <h1 className="text-3xl font-bold text-gray-900">{title}</h1>
         {subtitle && <p className="mt-2 text-gray-700">{subtitle}</p>}
       </div>
-      {actions && <div className="flex items-center gap-3">{actions}</div>}
+      {actions && <div className="flex flex-wrap items-center gap-3">{actions}</div>}
     </div>
   );
 }

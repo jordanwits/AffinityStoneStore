@@ -6,6 +6,7 @@ import { Badge } from 'core/components/Badge';
 import { EmptyState } from 'core/components/EmptyState';
 import { Button } from 'core/components/Button';
 import Link from 'next/link';
+import { OrdersPeriodFilter } from './OrdersPeriodFilter';
 
 // Cache orders list for 2 minutes (orders are user-specific and update frequently)
 export const revalidate = 120;
@@ -116,32 +117,8 @@ export default async function OrdersPage({ searchParams }: OrdersPageProps) {
       />
 
       {/* Date filter controls */}
-      <div className="mb-6 flex flex-wrap gap-2">
-        <Link href={`/orders?days=30&page=1`}>
-          <Button variant={daysFilter === 30 ? 'primary' : 'outline'} size="sm">
-            Last 30 days
-          </Button>
-        </Link>
-        <Link href={`/orders?days=90&page=1`}>
-          <Button variant={daysFilter === 90 ? 'primary' : 'outline'} size="sm">
-            Last 90 days
-          </Button>
-        </Link>
-        <Link href={`/orders?days=180&page=1`}>
-          <Button variant={daysFilter === 180 ? 'primary' : 'outline'} size="sm">
-            Last 6 months
-          </Button>
-        </Link>
-        <Link href={`/orders?days=365&page=1`}>
-          <Button variant={daysFilter === 365 ? 'primary' : 'outline'} size="sm">
-            Last year
-          </Button>
-        </Link>
-        <Link href={`/orders?days=9999&page=1`}>
-          <Button variant={daysFilter === 9999 ? 'primary' : 'outline'} size="sm">
-            All time
-          </Button>
-        </Link>
+      <div className="mb-6">
+        <OrdersPeriodFilter currentDays={daysFilter} />
       </div>
 
       {orders && orders.length > 0 ? (

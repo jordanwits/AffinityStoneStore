@@ -17,7 +17,7 @@ export default async function AppLayout({
     <div className="min-h-screen bg-gray-50">
       <nav className="bg-white border-b border-gray-300 sticky top-0 z-50 shadow-sm">
         <div className="max-w-[1600px] mx-auto px-3 lg:px-4">
-          <div className="flex justify-between h-20">
+          <div className="flex justify-between h-16 sm:h-20">
             <div className="flex items-center space-x-8">
               <Link href="/dashboard" className="hover:opacity-80 transition-opacity">
                 <BrandMark showText={false} imageClassName="h-14 w-auto" />
@@ -36,7 +36,7 @@ export default async function AppLayout({
           </div>
         </div>
       </nav>
-      <main className="max-w-[1600px] mx-auto py-20 px-3 lg:px-4">
+      <main className="max-w-[1600px] mx-auto pt-6 pb-20 lg:py-20 px-3 lg:px-4">
         {children}
       </main>
     </div>

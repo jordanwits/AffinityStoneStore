@@ -44,7 +44,7 @@ export default async function AdminDashboardPage() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 mb-8">
         <Link href="/admin/users" className="block">
-          <Card className="hover:shadow-lg hover:border-secondary transition-all cursor-pointer h-full border-l-4 border-l-primary">
+          <Card className="hover:shadow-lg hover:border-primary transition-all cursor-pointer h-full border-l-4 border-l-primary">
             <CardContent className="py-6">
               <div className="flex items-start justify-between">
                 <div>
@@ -80,7 +80,7 @@ export default async function AdminDashboardPage() {
         </Link>
 
         <Link href="/admin/orders" className="block">
-          <Card className="hover:shadow-lg hover:border-secondary transition-all cursor-pointer h-full border-l-4 border-l-primary">
+          <Card className="hover:shadow-lg hover:border-primary transition-all cursor-pointer h-full border-l-4 border-l-primary">
             <CardContent className="py-6">
               <div className="flex items-start justify-between">
                 <div>
@@ -127,26 +127,70 @@ export default async function AdminDashboardPage() {
         </CardHeader>
         <CardContent>
           {recentOrders && recentOrders.length > 0 ? (
-            <div className="overflow-x-auto">
+            <>
+            {/* Mobile card layout - hidden on md+ */}
+            <div className="md:hidden space-y-3">
+              {recentOrders.map((order: any) => (
+                <Link key={order.id} href={`/admin/orders/${order.id}`} className="block">
+                  <div className="p-4 rounded-lg border border-gray-200 hover:border-primary/40 hover:bg-gray-50/50 transition-colors">
+                    <div className="flex justify-between items-start gap-2 mb-2">
+                      <span className="text-primary font-semibold font-mono text-sm">
+                        #{order.id.slice(0, 8).toUpperCase()}
+                      </span>
+                      <span
+                        className={`px-2 py-1 rounded-full text-xs font-medium shrink-0 ${
+                          order.status === 'delivered'
+                            ? 'bg-green-100 text-green-900'
+                            : order.status === 'shipped'
+                            ? 'bg-purple-100 text-purple-900'
+                            : order.status === 'processing'
+                            ? 'bg-blue-100 text-blue-900'
+                            : 'bg-yellow-100 text-yellow-900'
+                        }`}
+                      >
+                        {order.status}
+                      </span>
+                    </div>
+                    <p className="text-sm text-gray-900 truncate mb-1">{order.profiles?.email || 'N/A'}</p>
+                    <div className="flex flex-wrap gap-2 text-sm">
+                      <span
+                        className={`px-2 py-0.5 rounded text-xs font-medium ${
+                          order.delivery_method === 'pickup'
+                            ? 'bg-blue-100 text-blue-900'
+                            : 'bg-gray-100 text-gray-900'
+                        }`}
+                      >
+                        {order.delivery_method === 'pickup' ? 'Pickup' : 'Delivery'}
+                      </span>
+                      <span className="font-semibold text-gray-900">{order.total_points} pts</span>
+                      <span className="text-gray-500">{new Date(order.created_at).toLocaleDateString()}</span>
+                    </div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+
+            {/* Desktop table - hidden on mobile */}
+            <div className="hidden md:block overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200">
                 <thead>
                   <tr>
-                    <th className="px-4 py-5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider bg-gray-50">
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider bg-gray-50">
                       Order ID
                     </th>
-                    <th className="px-4 py-5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider bg-gray-50">
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider bg-gray-50">
                       Customer
                     </th>
-                    <th className="px-4 py-5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider bg-gray-50">
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider bg-gray-50">
                       Delivery Method
                     </th>
-                    <th className="px-4 py-5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider bg-gray-50">
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider bg-gray-50">
                       Points
                     </th>
-                    <th className="px-4 py-5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider bg-gray-50">
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider bg-gray-50">
                       Status
                     </th>
-                    <th className="px-4 py-5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider bg-gray-50">
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider bg-gray-50">
                       Date
                     </th>
                   </tr>
@@ -154,7 +198,7 @@ export default async function AdminDashboardPage() {
                 <tbody className="divide-y divide-gray-200">
                   {recentOrders.map((order: any) => (
                     <tr key={order.id} className="hover:bg-gray-50">
-                      <td className="px-4 py-5 text-sm">
+                      <td className="px-4 py-3 text-sm">
                         <Link
                           href={`/admin/orders/${order.id}`}
                           className="text-primary hover:underline font-mono font-semibold"
@@ -162,8 +206,8 @@ export default async function AdminDashboardPage() {
                           {order.id.slice(0, 8)}
                         </Link>
                       </td>
-                      <td className="px-4 py-5 text-sm text-gray-900">{order.profiles?.email || 'N/A'}</td>
-                      <td className="px-4 py-5 text-sm">
+                      <td className="px-4 py-3 text-sm text-gray-900">{order.profiles?.email || 'N/A'}</td>
+                      <td className="px-4 py-3 text-sm">
                         <span
                           className={`px-2 py-1 rounded-full text-xs font-medium ${
                             order.delivery_method === 'pickup'
@@ -174,8 +218,8 @@ export default async function AdminDashboardPage() {
                           {order.delivery_method === 'pickup' ? 'Pickup' : 'Delivery'}
                         </span>
                       </td>
-                      <td className="px-4 py-5 text-sm font-semibold text-gray-900">{order.total_points}</td>
-                      <td className="px-4 py-5 text-sm">
+                      <td className="px-4 py-3 text-sm font-semibold text-gray-900">{order.total_points}</td>
+                      <td className="px-4 py-3 text-sm">
                         <span
                           className={`px-2 py-1 rounded-full text-xs font-medium ${
                             order.status === 'delivered'
@@ -190,7 +234,7 @@ export default async function AdminDashboardPage() {
                           {order.status}
                         </span>
                       </td>
-                      <td className="px-4 py-5 text-sm text-gray-700">
+                      <td className="px-4 py-3 text-sm text-gray-700">
                         {new Date(order.created_at).toLocaleDateString()}
                       </td>
                     </tr>
@@ -198,6 +242,7 @@ export default async function AdminDashboardPage() {
                 </tbody>
               </table>
             </div>
+            </>
           ) : (
             <p className="text-gray-700 text-center py-8">
               {isDevMode ? 'Configure Supabase to see real data' : 'No orders yet'}

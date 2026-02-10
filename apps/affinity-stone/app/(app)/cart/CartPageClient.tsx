@@ -222,7 +222,7 @@ export default function CartPageClient({ isDevMode }: CartPageClientProps) {
                       </p>
                     </div>
 
-                    <div className="flex items-center justify-between mt-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mt-4">
                       {/* Quantity Controls */}
                       <div className="flex items-center gap-2">
                         <button
@@ -248,7 +248,7 @@ export default function CartPageClient({ isDevMode }: CartPageClientProps) {
                       </div>
 
                       {/* Price & Remove */}
-                      <div className="text-right">
+                      <div className="text-left sm:text-right">
                         <p className="text-xl font-bold text-secondary">
                           {item.totalPoints.toLocaleString()} <span className="text-sm">pts</span>
                         </p>

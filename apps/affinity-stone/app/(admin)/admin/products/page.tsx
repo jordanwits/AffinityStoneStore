@@ -53,12 +53,12 @@ export default async function AdminProductsPage() {
 
   return (
     <div>
-      <div className="flex justify-between items-start mb-8">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4 mb-8">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Products</h1>
           <p className="text-gray-600 mt-1">Manage products and conversion rates</p>
         </div>
-        <Link href="/admin/products/new">
+        <Link href="/admin/products/new" className="shrink-0">
           <Button variant="primary" disabled={isDevMode}>
             Add Product
           </Button>
@@ -89,19 +89,19 @@ export default async function AdminProductsPage() {
               <table className="min-w-full divide-y divide-gray-200">
                 <thead>
                   <tr>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider bg-gray-50">
+                    <th className="px-3 py-2 md:px-4 md:py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider bg-gray-50">
                       Name
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider bg-gray-50">
+                    <th className="hidden md:table-cell px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider bg-gray-50">
                       Base USD
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider bg-gray-50">
+                    <th className="px-3 py-2 md:px-4 md:py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider bg-gray-50">
                       Points
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider bg-gray-50">
+                    <th className="hidden sm:table-cell px-3 py-2 md:px-4 md:py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider bg-gray-50">
                       Status
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider bg-gray-50">
+                    <th className="px-3 py-2 md:px-4 md:py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider bg-gray-50">
                       Actions
                     </th>
                   </tr>
@@ -110,14 +110,14 @@ export default async function AdminProductsPage() {
                   {products.map((product) => {
                     const points = Math.round(product.base_usd * conversionRate);
                     return (
-                      <tr key={product.id} className="hover:bg-gray-50">
-                        <td className="px-4 py-3">
+                      <tr key={product.id}>
+                        <td className="px-3 py-2 md:px-4 md:py-3">
                           <p className="text-sm font-medium text-gray-900">{product.name}</p>
                           <p className="text-xs text-gray-700 line-clamp-1">{product.description}</p>
                         </td>
-                        <td className="px-4 py-3 text-sm text-gray-900">${Number(product.base_usd).toFixed(2)}</td>
-                        <td className="px-4 py-3 text-sm font-semibold text-gray-900">{points}</td>
-                        <td className="px-4 py-3 text-sm">
+                        <td className="hidden md:table-cell px-4 py-3 text-sm text-gray-900">${Number(product.base_usd).toFixed(2)}</td>
+                        <td className="px-3 py-2 md:px-4 md:py-3 text-sm font-semibold text-gray-900">{points}</td>
+                        <td className="hidden sm:table-cell px-3 py-2 md:px-4 md:py-3 text-sm">
                           <span
                             className={`px-2 py-1 rounded-full text-xs font-medium ${
                               product.active
@@ -128,7 +128,7 @@ export default async function AdminProductsPage() {
                             {product.active ? 'Active' : 'Inactive'}
                           </span>
                         </td>
-                        <td className="px-4 py-3 text-sm">
+                        <td className="px-3 py-2 md:px-4 md:py-3 text-sm">
                           <ProductRowActions 
                             productId={product.id}
                             productName={product.name}

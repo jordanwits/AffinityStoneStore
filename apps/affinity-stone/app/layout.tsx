@@ -9,6 +9,12 @@ export const metadata: Metadata = {
   description: `Redeem your points for branded merchandise at ${affinityBranding.appName}`,
 };
 
+export const viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 5,
+};
+
 export default function RootLayout({
   children,
 }: {

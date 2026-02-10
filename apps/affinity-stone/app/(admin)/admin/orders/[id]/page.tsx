@@ -1,9 +1,11 @@
 import { createClient } from '@/lib/supabase/server';
 import { Card, CardHeader, CardContent } from 'core/components/Card';
-import { Button } from 'core/components/Button';
 import { BackButton } from 'core/components/BackButton';
 import { notFound } from 'next/navigation';
 import { OrderStatusEditor } from './OrderStatusEditor';
+import { OrderActions } from './OrderActions';
+import { getTrackingUrl } from '@/lib/tracking';
+import Link from 'next/link';
 
 export default async function AdminOrderDetailPage({
   params,
@@ -22,8 +24,8 @@ export default async function AdminOrderDetailPage({
   
   const supabase = await createClient();
 
-  // Run both queries in parallel for faster loading
-  const [orderResult, itemsResult] = await Promise.all([
+  // Run queries in parallel for faster loading
+  const [orderResult, itemsResult, refundCheck] = await Promise.all([
     supabase
       .from('orders')
       .select('*, profiles(email, full_name)')
@@ -33,6 +35,11 @@ export default async function AdminOrderDetailPage({
       .from('order_items')
       .select('*')
       .eq('order_id', id),
+    supabase
+      .from('points_ledger')
+      .select('id')
+      .eq('order_id', id)
+      .gt('delta_points', 0),
   ]);
 
   if (!orderResult.data) {
@@ -41,12 +48,13 @@ export default async function AdminOrderDetailPage({
 
   const order = orderResult.data;
   const items = itemsResult.data || [];
+  const isAlreadyRefunded = (refundCheck.data?.length ?? 0) > 0;
 
   return (
     <div className="px-4 py-6 sm:px-0">
       <BackButton href="/admin/orders" label="Back to Orders" className="mb-4" />
-      <div className="flex justify-between items-start mb-8">
-        <div>
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4 mb-8">
+        <div className="min-w-0">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">
             Order #{order.id.slice(0, 8).toUpperCase()}
           </h1>
@@ -54,13 +62,20 @@ export default async function AdminOrderDetailPage({
             Placed on {new Date(order.created_at).toLocaleString()}
           </p>
         </div>
-        <OrderStatusEditor
-          orderId={order.id}
-          currentStatus={order.status}
-          currentTrackingNumber={order.tracking_number}
-          currentNotes={order.notes}
-          isDevMode={isDevMode}
-        />
+        <div className="flex flex-col gap-4 items-stretch sm:items-end w-full sm:w-auto">
+          <OrderStatusEditor
+            orderId={order.id}
+            currentStatus={order.status}
+            currentTrackingNumber={order.tracking_number}
+            currentNotes={order.notes}
+            isDevMode={isDevMode}
+          />
+          <OrderActions
+            orderId={order.id}
+            isDevMode={isDevMode}
+            isAlreadyRefunded={isAlreadyRefunded}
+          />
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
@@ -119,7 +134,17 @@ export default async function AdminOrderDetailPage({
               {order.tracking_number && (
                 <div>
                   <p className="text-sm text-gray-700 font-medium">Tracking Number</p>
-                  <p className="font-medium font-mono text-gray-900 mt-1">{order.tracking_number}</p>
+                  <Link 
+                    href={getTrackingUrl(order.tracking_number)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="font-medium font-mono text-blue-600 hover:text-blue-800 hover:underline mt-1 inline-block"
+                  >
+                    {order.tracking_number}
+                    <svg className="w-4 h-4 inline-block ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                    </svg>
+                  </Link>
                 </div>
               )}
               <div>

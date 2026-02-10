@@ -9,6 +9,7 @@ import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import { PrintOrderButton, ContactSupportButton } from './OrderActions';
+import { getTrackingUrl } from '@/lib/tracking';
 
 export default async function OrderDetailPage({
   params,
@@ -216,6 +217,24 @@ export default async function OrderDetailPage({
                 )}
               </div>
             </div>
+
+            {order.tracking_number && (
+              <div className="pt-6 border-t">
+                <p className="text-sm font-medium text-gray-500 mb-2">Tracking Number</p>
+                <Link 
+                  href={getTrackingUrl(order.tracking_number)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-medium font-mono text-blue-600 hover:text-blue-800 hover:underline inline-flex items-center gap-2"
+                >
+                  {order.tracking_number}
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                  </svg>
+                </Link>
+                <p className="text-xs text-gray-500 mt-1">Click to track your package</p>
+              </div>
+            )}
           </CardContent>
         </Card>
 

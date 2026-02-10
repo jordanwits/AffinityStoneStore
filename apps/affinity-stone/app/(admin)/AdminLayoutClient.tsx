@@ -124,7 +124,7 @@ export function AdminLayoutClient({ children, isDevMode }: AdminLayoutClientProp
       {/* Top Navigation Bar - Matches Store Design */}
       <nav className="bg-white border-b border-gray-300 sticky top-0 z-50 shadow-sm">
         <div className="max-w-[1600px] mx-auto px-3 lg:px-4">
-          <div className="flex justify-between h-20">
+          <div className="flex justify-between h-16 sm:h-20">
             <div className="flex items-center space-x-8">
               <button
                 onClick={() => setIsSidebarOpen(!isSidebarOpen)}
@@ -156,12 +156,13 @@ export function AdminLayoutClient({ children, isDevMode }: AdminLayoutClientProp
               )}
               <Link
                 href="/dashboard"
-                className="text-sm font-medium text-gray-700 hover:text-gray-900 px-3 py-1.5 rounded-md hover:bg-gray-100 transition-colors inline-flex items-center gap-1 border-l pl-3 ml-3"
+                className="text-sm font-medium text-gray-700 hover:text-gray-900 p-2 sm:px-3 sm:py-1.5 rounded-md hover:bg-gray-100 transition-colors inline-flex items-center gap-1 border-l pl-3 ml-3 shrink-0"
+                aria-label="Back to Store"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
                 </svg>
-                Back to Store
+                <span className="hidden sm:inline">Back to Store</span>
               </Link>
             </div>
           </div>

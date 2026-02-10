@@ -1,10 +1,19 @@
 'use client';
 
 import { useRouter, useSearchParams } from 'next/navigation';
+import { Select } from 'core/components/Select';
 
 interface StorefrontControlsProps {
   currentSort?: string;
 }
+
+const SORT_OPTIONS = [
+  { value: 'featured', label: 'Featured' },
+  { value: 'newest', label: 'Newest' },
+  { value: 'priceAsc', label: 'Price: Low to High' },
+  { value: 'priceDesc', label: 'Price: High to Low' },
+  { value: 'nameAsc', label: 'Name: A-Z' },
+];
 
 export function StorefrontControls({ currentSort = 'featured' }: StorefrontControlsProps) {
   const router = useRouter();
@@ -41,8 +50,8 @@ export function StorefrontControls({ currentSort = 'featured' }: StorefrontContr
   };
 
   return (
-    <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
-      <form onSubmit={handleSearch} className="flex-1 max-w-md">
+    <div className="flex flex-col sm:flex-row gap-4 items-stretch sm:items-center">
+      <form onSubmit={handleSearch} className="flex-1 w-full sm:max-w-md min-w-0">
         <div className="relative">
           <input
             type="text"
@@ -61,19 +70,15 @@ export function StorefrontControls({ currentSort = 'featured' }: StorefrontContr
           </svg>
         </div>
       </form>
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3 flex-wrap sm:flex-nowrap">
         <span className="text-sm font-medium text-gray-700 whitespace-nowrap">Sort By</span>
-        <select 
+        <Select
+          options={SORT_OPTIONS}
           value={currentSort}
-          onChange={(e) => handleSortChange(e.target.value)}
-          className="px-4 py-2 border-2 border-gray-300 rounded-full hover:border-gray-500 focus:ring-2 focus:ring-gray-300 focus:border-gray-900 bg-white text-sm font-medium text-gray-900 transition-colors cursor-pointer"
-        >
-          <option value="featured">Featured</option>
-          <option value="newest">Newest</option>
-          <option value="priceAsc">Price: Low to High</option>
-          <option value="priceDesc">Price: High to Low</option>
-          <option value="nameAsc">Name: A-Z</option>
-        </select>
+          onChange={handleSortChange}
+          className="sm:min-w-[160px]"
+          wrapperClassName="w-full sm:w-auto sm:min-w-[160px] shrink-0"
+        />
       </div>
     </div>
   );

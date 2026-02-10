@@ -12,15 +12,17 @@ export default async function MarketingLayout({
       {/* Header */}
       <header className="border-b border-gray-200 sticky top-0 z-50 bg-white/95 backdrop-blur-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-20">
-            <Link href="/home" className="hover:opacity-80 transition-opacity">
+          <div className="flex justify-between items-center h-16 sm:h-20 gap-4 min-w-0">
+            <Link href="/home" className="hover:opacity-80 transition-opacity shrink-0">
               <BrandMark 
                 imageClassName="h-14 w-auto" 
                 showText={false}
               />
             </Link>
             
-            <MarketingHeaderActions />
+            <div className="min-w-0 flex-1 flex justify-end">
+              <MarketingHeaderActions />
+            </div>
           </div>
         </div>
       </header>
