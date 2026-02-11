@@ -35,12 +35,14 @@ export default function RootLayout({
       {children}
       <SpeedInsights />
       {/* Preload critical logo for faster LCP */}
-      <link
-        rel="preload"
-        href={affinityBranding.logo.src}
-        as="image"
-        type="image/png"
-      />
+      {affinityBranding.logo && (
+        <link
+          rel="preload"
+          href={affinityBranding.logo.src}
+          as="image"
+          type="image/png"
+        />
+      )}
     </BaseLayout>
   );
 }
