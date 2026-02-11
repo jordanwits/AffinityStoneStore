@@ -7,6 +7,7 @@ export default async function AdminUsersPage() {
                     process.env.NEXT_PUBLIC_SUPABASE_URL.includes('placeholder');
   
   let users: any[] = [];
+  let accessRequests: any[] = [];
   let currentAdminId: string | undefined;
   
   if (!isDevMode) {
@@ -20,6 +21,15 @@ export default async function AdminUsersPage() {
       .order('created_at', { ascending: false });
     
     users = data || [];
+
+    // Get pending access requests
+    const { data: requests } = await supabase
+      .from('access_requests')
+      .select('id,email,full_name,message,status,created_at')
+      .eq('status', 'pending')
+      .order('created_at', { ascending: false });
+    
+    accessRequests = requests || [];
   } else {
     // Mock data for dev mode
     users = [
@@ -40,7 +50,18 @@ export default async function AdminUsersPage() {
         created_at: new Date().toISOString(),
       },
     ];
+    // Mock access requests for dev mode
+    accessRequests = [
+      {
+        id: 'req-1',
+        email: 'newuser@example.com',
+        full_name: 'New User Request',
+        message: 'I would like access to the rewards platform.',
+        status: 'pending',
+        created_at: new Date().toISOString(),
+      },
+    ];
   }
 
-  return <UsersPageClient isDevMode={isDevMode} users={users} currentAdminId={currentAdminId} />;
+  return <UsersPageClient isDevMode={isDevMode} users={users} accessRequests={accessRequests} currentAdminId={currentAdminId} />;
 }

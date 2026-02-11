@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from 'core/components/Button';
 import { Input } from 'core/components/Input';
@@ -11,9 +11,11 @@ interface CreateUserModalProps {
   isOpen: boolean;
   onClose: () => void;
   isDevMode: boolean;
+  initialEmail?: string;
+  initialFullName?: string;
 }
 
-export function CreateUserModal({ isOpen, onClose, isDevMode }: CreateUserModalProps) {
+export function CreateUserModal({ isOpen, onClose, isDevMode, initialEmail, initialFullName }: CreateUserModalProps) {
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [fullName, setFullName] = useState('');
@@ -21,6 +23,18 @@ export function CreateUserModal({ isOpen, onClose, isDevMode }: CreateUserModalP
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+
+  // Update form when initial values change (e.g., when clicking an access request)
+  useEffect(() => {
+    if (isOpen) {
+      if (initialEmail) {
+        setEmail(initialEmail);
+      }
+      if (initialFullName) {
+        setFullName(initialFullName);
+      }
+    }
+  }, [isOpen, initialEmail, initialFullName]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -63,13 +77,26 @@ export function CreateUserModal({ isOpen, onClose, isDevMode }: CreateUserModalP
     onClose();
   };
 
+  // Reset form when modal closes
+  useEffect(() => {
+    if (!isOpen) {
+      setEmail('');
+      setFullName('');
+      setRole('user');
+      setError(null);
+      setSuccess(false);
+    }
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50">
       <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-bold text-gray-900">Add New User</h2>
+          <h2 className="text-xl font-bold text-gray-900">
+            {initialEmail ? 'Approve Access Request' : 'Add New User'}
+          </h2>
           <button
             onClick={handleClose}
             disabled={loading}

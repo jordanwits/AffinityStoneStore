@@ -2,6 +2,7 @@
 
 import { requireAdmin } from '@/lib/auth/require-admin';
 import { revalidatePath } from 'next/cache';
+import { sendEmail, getSiteUrl } from '@/lib/email/resend';
 
 type UserRole = 'user' | 'admin';
 
@@ -126,6 +127,15 @@ export async function deleteUser(input: {
     return { success: false, error: 'You cannot delete your own account.' };
   }
 
+  // Get user's email before deletion (for resetting access requests)
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('email')
+    .eq('id', input.userId)
+    .single();
+
+  const userEmail = profile?.email;
+
   // Check if user has any orders
   const { data: orders, error: checkError } = await supabase
     .from('orders')
@@ -151,6 +161,27 @@ export async function deleteUser(input: {
   if (authError) {
     console.error('Error deleting user from auth:', authError);
     return { success: false, error: authError.message || 'Failed to delete user' };
+  }
+
+  // Reset any access requests for this email so they can request again
+  if (userEmail) {
+    const trimmedEmail = userEmail.trim().toLowerCase();
+    const { error: requestError } = await supabase
+      .from('access_requests')
+      .update({
+        status: 'rejected',
+        reviewed_by: currentUser.id,
+        reviewed_at: new Date().toISOString(),
+      })
+      .eq('email', trimmedEmail)
+      .in('status', ['pending', 'approved']); // Only update pending or approved requests
+
+    if (requestError) {
+      console.error('Error resetting access requests:', requestError);
+      // Don't fail the operation, just log it
+    } else {
+      console.log(`[Delete User] Reset access requests for ${trimmedEmail}`);
+    }
   }
 
   revalidatePath('/admin/users');
@@ -179,15 +210,15 @@ export async function createUser(input: {
     return { success: false, error: 'Invalid email address' };
   }
 
-  const { supabase } = await requireAdmin();
+  const { supabase, user: currentAdmin } = await requireAdmin();
 
-  // Create the auth user using admin client with invite
-  // This sends an email with a link to set their password
-  const { data: authData, error: authError } = await supabase.auth.admin.inviteUserByEmail(input.email, {
-    data: {
+  // Create the user first (unconfirmed, they'll confirm via the invite link)
+  const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+    email: input.email.trim(),
+    email_confirm: false, // Don't confirm - they'll confirm via invite link
+    user_metadata: {
       full_name: input.fullName?.trim() || null,
     },
-    redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/update-password`,
   });
 
   if (authError) {
@@ -200,6 +231,46 @@ export async function createUser(input: {
 
   if (!authData.user) {
     return { success: false, error: 'Failed to create user' };
+  }
+
+  // Generate invite link for the newly created user
+  const siteUrl = getSiteUrl();
+  const redirectTo = `${siteUrl}/update-password`;
+  
+  const { data: linkData, error: linkError } = await supabase.auth.admin.generateLink({
+    type: 'invite',
+    email: input.email.trim(),
+    options: {
+      redirectTo,
+    },
+  });
+
+  if (linkError) {
+    console.error('Error generating invite link:', linkError);
+    console.error('Link error details:', JSON.stringify(linkError, null, 2));
+    // If link generation fails, try to delete the user and return error
+    await supabase.auth.admin.deleteUser(authData.user.id);
+    return { success: false, error: `Failed to generate invite link: ${linkError.message || 'Please try again.'}` };
+  }
+
+  if (!linkData?.properties?.action_link) {
+    console.error('Link data missing action_link:', linkData);
+    await supabase.auth.admin.deleteUser(authData.user.id);
+    return { success: false, error: 'Failed to generate invite link. Please try again.' };
+  }
+
+  // Send invite email via Resend (using verified domain)
+  const inviteLink = linkData.properties.action_link;
+  const emailResult = await sendInviteEmail({
+    email: input.email.trim(),
+    fullName: input.fullName?.trim() || null,
+    inviteLink,
+  });
+
+  if (!emailResult.success) {
+    console.error('Error sending invite email:', emailResult.error);
+    // User is created but email failed - log it but don't fail the operation
+    // Admin can manually resend the invite if needed
   }
 
   // Update the profile role if specified (default is 'user' from schema)
@@ -215,8 +286,106 @@ export async function createUser(input: {
     }
   }
 
+  // Mark any pending access request for this email as approved
+  const trimmedEmail = input.email.trim().toLowerCase();
+  const { error: requestError } = await supabase
+    .from('access_requests')
+    .update({
+      status: 'approved',
+      reviewed_by: currentAdmin.id,
+      reviewed_at: new Date().toISOString(),
+    })
+    .eq('email', trimmedEmail)
+    .eq('status', 'pending');
+
+  if (requestError) {
+    console.error('Error updating access request status:', requestError);
+    // Don't fail the whole operation, just log it
+  }
+
   revalidatePath('/admin/users');
   revalidatePath('/admin');
 
   return { success: true };
+}
+
+async function sendInviteEmail(params: {
+  email: string;
+  fullName: string | null;
+  inviteLink: string;
+}) {
+  const siteUrl = getSiteUrl();
+
+  const displayName = params.fullName || 'there';
+  const subject = 'Welcome to Affinity Stone Rewards - Set Your Password';
+
+  const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${subject}</title>
+</head>
+<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+  <div style="background-color: #fef3c7; border-radius: 8px; padding: 30px; margin-bottom: 20px;">
+    <h1 style="color: #92400e; margin: 0 0 10px 0;">Welcome to Affinity Stone Rewards!</h1>
+    <p style="font-size: 16px; margin: 0; color: #78350f;">Your account has been created. Please set your password to get started.</p>
+  </div>
+  
+  <div style="background-color: #fff; border: 1px solid #e5e7eb; border-radius: 8px; padding: 20px; margin-bottom: 20px;">
+    <p style="margin: 0 0 15px 0;">Hi ${displayName},</p>
+    <p style="margin: 0 0 15px 0;">
+      Your account has been created for the Affinity Stone Rewards platform. To get started, please click the button below to set your password.
+    </p>
+    
+    <div style="text-align: center; margin: 30px 0;">
+      <a href="${params.inviteLink}" style="display: inline-block; background-color: #2563eb; color: #fff; text-decoration: none; padding: 12px 24px; border-radius: 6px; font-weight: bold;">Set Your Password</a>
+    </div>
+    
+    <p style="margin: 15px 0 0 0; font-size: 14px; color: #666;">
+      Or copy and paste this link into your browser:
+    </p>
+    <p style="margin: 5px 0 0 0; font-size: 12px; color: #2563eb; word-break: break-all;">
+      ${params.inviteLink}
+    </p>
+  </div>
+  
+  <div style="background-color: #f8f9fa; border-radius: 8px; padding: 20px; margin-top: 20px;">
+    <p style="margin: 0; font-size: 14px; color: #666;">
+      <strong>Note:</strong> This link will expire in 24 hours. If you didn't request this account, you can safely ignore this email.
+    </p>
+  </div>
+  
+  <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb; text-align: center;">
+    <p style="margin: 0; font-size: 12px; color: #999;">
+      Affinity Stone Rewards<br>
+      <a href="${siteUrl}" style="color: #2563eb; text-decoration: none;">${siteUrl}</a>
+    </p>
+  </div>
+</body>
+</html>
+  `;
+
+  const text = `
+Welcome to Affinity Stone Rewards!
+
+Hi ${displayName},
+
+Your account has been created for the Affinity Stone Rewards platform. To get started, please visit the link below to set your password.
+
+${params.inviteLink}
+
+Note: This link will expire in 24 hours. If you didn't request this account, you can safely ignore this email.
+
+Affinity Stone Rewards
+${siteUrl}
+  `.trim();
+
+  return await sendEmail({
+    to: params.email,
+    subject,
+    html,
+    text,
+  });
 }
