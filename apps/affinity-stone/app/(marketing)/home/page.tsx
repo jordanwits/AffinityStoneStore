@@ -3,11 +3,9 @@ import { redirect } from 'next/navigation';
 import { Suspense } from 'react';
 import { Button } from 'core/components/Button';
 import { getCurrentUser } from '@/lib/auth/get-user';
-import { affinityBranding } from '@/branding';
 
-// Enable static generation with ISR for better performance
-// Higher revalidate time since home page content doesn't change often
-export const revalidate = 300; // Revalidate every 5 minutes
+// Must be dynamic: auth check uses cookies (Supabase session)
+export const dynamic = 'force-dynamic';
 
 // Separate auth check component to prevent blocking
 async function AuthRedirect() {
