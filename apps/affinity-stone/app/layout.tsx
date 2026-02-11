@@ -7,6 +7,16 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: `${affinityBranding.appName} - Rewards Merch Shop`,
   description: `Redeem your points for branded merchandise at ${affinityBranding.appName}`,
+  // Performance optimizations
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'https://affinitystonestore.com'),
+  openGraph: {
+    type: 'website',
+  },
+  // Optimize robots and indexing
+  robots: {
+    index: true,
+    follow: true,
+  },
 };
 
 export const viewport = {
@@ -24,6 +34,13 @@ export default function RootLayout({
     <BaseLayout branding={affinityBranding}>
       {children}
       <SpeedInsights />
+      {/* Preload critical logo for faster LCP */}
+      <link
+        rel="preload"
+        href={affinityBranding.logo.src}
+        as="image"
+        type="image/png"
+      />
     </BaseLayout>
   );
 }

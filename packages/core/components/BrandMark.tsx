@@ -28,8 +28,9 @@ export function BrandMark({
           width={branding.logo.width || 40}
           height={branding.logo.height || 40}
           className={imageClassName}
-          quality={100}
+          quality={85}
           priority
+          loading="eager"
         />
       ) : null}
       {showText && (

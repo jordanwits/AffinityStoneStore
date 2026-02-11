@@ -1,22 +1,42 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
+import { Suspense } from 'react';
 import { Button } from 'core/components/Button';
 import { getCurrentUser } from '@/lib/auth/get-user';
+import { affinityBranding } from '@/branding';
 
-export default async function MarketingHomePage() {
-  // If user is already authenticated, redirect to dashboard
+// Enable static generation with ISR for better performance
+// Higher revalidate time since home page content doesn't change often
+export const revalidate = 300; // Revalidate every 5 minutes
+
+// Separate auth check component to prevent blocking
+async function AuthRedirect() {
   const isDevMode = !process.env.NEXT_PUBLIC_SUPABASE_URL || 
                     process.env.NEXT_PUBLIC_SUPABASE_URL.includes('placeholder');
   
   if (!isDevMode) {
-    const user = await getCurrentUser();
-    if (user) {
-      redirect('/dashboard');
+    try {
+      const user = await getCurrentUser();
+      if (user) {
+        redirect('/dashboard');
+      }
+    } catch (error) {
+      // If auth check fails, continue to show home page
+      // This prevents blocking on Supabase connection issues
+      console.error('Auth check failed:', error);
     }
   }
+  
+  return null;
+}
 
+export default async function MarketingHomePage() {
   return (
-    <div className="bg-white">
+    <>
+      <Suspense fallback={null}>
+        <AuthRedirect />
+      </Suspense>
+      <div className="bg-white">
       {/* Hero Section */}
       <section className="relative overflow-hidden bg-gray-50">
         {/* Decorative Elements */}
@@ -269,5 +289,6 @@ export default async function MarketingHomePage() {
         </div>
       </section>
     </div>
+    </>
   );
 }

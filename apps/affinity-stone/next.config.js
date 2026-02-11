@@ -20,7 +20,18 @@ const nextConfig = {
         hostname: 'images.unsplash.com',
       },
     ],
+    // Optimize images for better performance
+    formats: ['image/avif', 'image/webp'],
+    minimumCacheTTL: 60,
+    deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
+    imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
   },
+  // Enable compression
+  compress: true,
+  // Optimize production builds
+  swcMinify: true,
+  // Enable React strict mode for better performance
+  reactStrictMode: true,
   experimental: {
     serverActions: {
       bodySizeLimit: '10mb', // Allow up to 10MB for image uploads
@@ -49,6 +60,26 @@ const nextConfig = {
           {
             key: 'Cache-Control',
             value: 'public, max-age=31536000, immutable',
+          },
+        ],
+      },
+      {
+        // Cache HTML pages with ISR for better performance
+        source: '/home',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, s-maxage=300, stale-while-revalidate=600',
+          },
+        ],
+      },
+      {
+        // Cache other marketing pages
+        source: '/(request-access|login)',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, s-maxage=60, stale-while-revalidate=300',
           },
         ],
       },
