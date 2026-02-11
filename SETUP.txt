@@ -38,11 +38,17 @@ QUICK START
 
    Create: apps/affinity-stone/.env.local
    
-   Add these lines (replace with your actual Supabase values):
+   Add these lines (replace with your actual values):
 
    NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
    NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key-here
    SUPABASE_SERVICE_ROLE_KEY=your-service-role-key-here
+   NEXT_PUBLIC_SITE_URL=http://localhost:3000
+   
+   Optional (for email notifications):
+   RESEND_API_KEY=your-resend-api-key
+   FROM_EMAIL=info@yourdomain.com
+   ADMIN_NOTIFICATION_EMAILS=admin@yourdomain.com
 
 
 4. CREATE YOUR FIRST ADMIN USER
@@ -84,15 +90,18 @@ USER FEATURES:
 - Product catalog (browse, view details)
 - Points history (all transactions)
 - Order history (view past orders)
-- Cart/checkout pages (placeholders, "coming soon")
+- Shopping cart (add items, manage quantities)
+- Checkout flow (shipping capture, order placement)
+- Order placement with points deduction
 
 ADMIN FEATURES:
 - Admin dashboard (user/product/order counts)
-- User management (view all users, roles, status)
-- Product management (view products, pricing)
-- Points management (view all transactions, bulk upload placeholder)
-- Order management (view orders, update status placeholder)
+- User management (view all users, roles, status, create users)
+- Product management (view, create, edit, deactivate products with image uploads)
+- Points management (view all transactions, manual adjustments, bulk CSV upload)
+- Order management (view orders, update status, add tracking, internal notes)
 - Reports (points issued/redeemed, top products)
+- Export data via CSV (manual and automated monthly exports)
 
 DATABASE:
 - Users/profiles (auth.users + profiles table with roles)
@@ -120,28 +129,14 @@ All clients share the same UI components from packages/core.
 WHAT'S NOT YET IMPLEMENTED
 ---------------------------
 
-These are "coming soon" placeholders in the UI:
-- Shopping cart functionality (add to cart, manage cart)
-- Checkout flow (capture shipping, place order)
-- Admin CRUD operations (add/edit products, users, points manually)
-- Bulk points upload via CSV
-- Order status updates from admin
-- Email notifications
+These features are still pending:
+- Informational pages (FAQ, Terms & Conditions, "What Are Points?", "How to Earn Points")
+- Contact Support functionality (currently shows placeholder)
+- Monthly exports automation (edge function exists but needs deployment - see EXPORTS_SETUP.txt)
+- Advanced search/filtering enhancements
+- Pagination for large lists
 
-The "bones" are complete - these features can be built on top of this foundation.
-
-
-NEXT STEPS
-----------
-
-After confirming the bones work:
-1. Implement shopping cart + checkout
-2. Add admin CRUD forms
-3. Add email notifications
-4. Polish UI/UX
-5. Add product image uploads
-6. Implement search/filtering
-7. Add pagination
+The core platform is complete and fully functional. The above items are enhancements that can be added as needed.
 
 
 TROUBLESHOOTING

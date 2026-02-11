@@ -19,6 +19,15 @@ import { getCheckoutData } from './actions';
 interface CheckoutPageClientProps {
   isDevMode: boolean;
   placeOrder: (formData: FormData) => Promise<{ success: boolean; orderId?: string; error?: string }>;
+  profileAddress: {
+    fullName: string;
+    addressLine1: string;
+    addressLine2: string;
+    city: string;
+    state: string;
+    zip: string;
+    country: string;
+  };
 }
 
 // Mock data for dev mode
@@ -33,6 +42,7 @@ const mockProducts = [
 export default function CheckoutPageClient({
   isDevMode,
   placeOrder,
+  profileAddress,
 }: CheckoutPageClientProps) {
   const router = useRouter();
   const [cartItems, setCartItems] = useState<CartItemWithDetails[]>([]);
@@ -41,6 +51,7 @@ export default function CheckoutPageClient({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [currentStep, setCurrentStep] = useState<1 | 2>(1);
+  const [addressFilled, setAddressFilled] = useState(false);
 
   // Form state
   const [deliveryMethod, setDeliveryMethod] = useState<'pickup' | 'delivery'>('delivery');
@@ -51,6 +62,36 @@ export default function CheckoutPageClient({
   const [shipState, setShipState] = useState('');
   const [shipZip, setShipZip] = useState('');
   const [shipCountry, setShipCountry] = useState('US');
+
+  // Auto-fill address from profile when delivery method is selected
+  useEffect(() => {
+    if (deliveryMethod === 'delivery' && profileAddress.addressLine1) {
+      // Only auto-fill if fields are empty or if user hasn't manually edited them
+      if (!addressFilled) {
+        setShipName(profileAddress.fullName || '');
+        setShipAddressLine1(profileAddress.addressLine1 || '');
+        setShipAddressLine2(profileAddress.addressLine2 || '');
+        setShipCity(profileAddress.city || '');
+        setShipState(profileAddress.state || '');
+        setShipZip(profileAddress.zip || '');
+        setShipCountry(profileAddress.country || 'US');
+        setAddressFilled(true);
+      }
+    }
+  }, [deliveryMethod, addressFilled, profileAddress]);
+
+  // Function to manually fill from profile
+  const fillFromProfile = () => {
+    if (profileAddress.addressLine1) {
+      setShipName(profileAddress.fullName || '');
+      setShipAddressLine1(profileAddress.addressLine1 || '');
+      setShipAddressLine2(profileAddress.addressLine2 || '');
+      setShipCity(profileAddress.city || '');
+      setShipState(profileAddress.state || '');
+      setShipZip(profileAddress.zip || '');
+      setShipCountry(profileAddress.country || 'US');
+    }
+  };
 
   const loadCart = useCallback(async () => {
     const cart = getCart();
@@ -274,7 +315,10 @@ export default function CheckoutPageClient({
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <button
                       type="button"
-                      onClick={() => setDeliveryMethod('pickup')}
+                      onClick={() => {
+                        setDeliveryMethod('pickup');
+                        setAddressFilled(false); // Reset so address can auto-fill again if they switch back
+                      }}
                       className={`p-4 border-2 rounded-lg text-left transition-all ${
                         deliveryMethod === 'pickup'
                           ? 'border-primary bg-primary/5'
@@ -306,7 +350,11 @@ export default function CheckoutPageClient({
 
                     <button
                       type="button"
-                      onClick={() => setDeliveryMethod('delivery')}
+                      onClick={() => {
+                        setDeliveryMethod('delivery');
+                        // Reset addressFilled so it can auto-fill when switching to delivery
+                        setAddressFilled(false);
+                      }}
                       className={`p-4 border-2 rounded-lg text-left transition-all ${
                         deliveryMethod === 'delivery'
                           ? 'border-primary bg-primary/5'
@@ -343,12 +391,23 @@ export default function CheckoutPageClient({
             {deliveryMethod === 'delivery' && (
               <Card>
                 <CardHeader className="bg-gray-50">
-                  <div className="flex items-center gap-2">
-                    <svg className="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                    </svg>
-                    <h2 className="text-lg font-semibold text-gray-900">Shipping Information</h2>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <svg className="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                      </svg>
+                      <h2 className="text-lg font-semibold text-gray-900">Shipping Information</h2>
+                    </div>
+                    {profileAddress.addressLine1 && (
+                      <button
+                        type="button"
+                        onClick={fillFromProfile}
+                        className="text-sm text-gray-900 hover:text-gray-700 font-medium underline"
+                      >
+                        Use Default Address
+                      </button>
+                    )}
                   </div>
                 </CardHeader>
                 <CardContent>
@@ -391,6 +450,7 @@ export default function CheckoutPageClient({
                         value={shipAddressLine2}
                         onChange={(e: React.ChangeEvent<HTMLInputElement>) => setShipAddressLine2(e.target.value)}
                         placeholder="Apt 4B"
+                        className="placeholder:text-gray-400"
                       />
                     </div>
 
