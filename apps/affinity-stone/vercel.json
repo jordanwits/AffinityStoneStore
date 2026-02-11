@@ -1,6 +1,6 @@
 {
-  "buildCommand": "cd ../.. && pnpm build --filter=affinity-stone",
-  "devCommand": "cd ../.. && pnpm dev --filter=affinity-stone",
+  "buildCommand": "cd ../.. && pnpm --filter affinity-stone build",
+  "devCommand": "cd ../.. && pnpm --filter affinity-stone dev",
   "installCommand": "cd ../.. && pnpm install",
   "framework": "nextjs",
   "regions": ["iad1"],
