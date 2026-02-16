@@ -60,9 +60,14 @@ export async function updateSession(request: NextRequest) {
   // We can usually trust the session cookie and only refresh when nearing expiry.
   const refreshGraceMs = 2 * 60 * 1000; // refresh if expiring in next 2 minutes
 
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
+  let session;
+  try {
+    const sessionResult = await supabase.auth.getSession();
+    session = sessionResult.data?.session;
+  } catch (error) {
+    // If session retrieval fails (e.g., invalid refresh token), treat as unauthenticated
+    session = null;
+  }
 
   const expiresAtMs = session?.expires_at ? session.expires_at * 1000 : 0;
   const shouldRefresh = !session || (expiresAtMs > 0 && expiresAtMs - Date.now() < refreshGraceMs);
@@ -70,10 +75,16 @@ export async function updateSession(request: NextRequest) {
   let isAuthenticated = Boolean(session?.access_token);
 
   if (shouldRefresh) {
-    const {
-      data: { user: refreshedUser },
-    } = await supabase.auth.getUser();
-    isAuthenticated = Boolean(refreshedUser);
+    try {
+      const {
+        data: { user: refreshedUser },
+      } = await supabase.auth.getUser();
+      isAuthenticated = Boolean(refreshedUser);
+    } catch (error) {
+      // If refresh fails (e.g., invalid refresh token), treat as unauthenticated
+      // This is expected after logout or token expiration
+      isAuthenticated = false;
+    }
   }
 
   if (isAppRoute && !isAuthenticated) {
