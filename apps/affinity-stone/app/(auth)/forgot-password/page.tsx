@@ -23,7 +23,7 @@ export default function ForgotPasswordPage() {
     setLoading(true);
 
     try {
-      const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+      const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://affinitystonestore.com';
       const redirectTo = `${siteUrl}/update-password`;
 
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
