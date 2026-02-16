@@ -13,6 +13,7 @@ type UserRow = {
   role: 'user' | 'admin';
   active: boolean;
   created_at: string;
+  points_balance: number;
 };
 
 type AccessRequest = {

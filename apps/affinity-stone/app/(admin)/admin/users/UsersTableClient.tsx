@@ -15,6 +15,7 @@ type UserRow = {
   role: 'user' | 'admin';
   active: boolean;
   created_at: string;
+  points_balance: number;
 };
 
 function UserRowActions({
@@ -393,6 +394,12 @@ export function UsersTableClient({
                       </span>
                     )}
                   </div>
+                  <div>
+                    <span className="text-gray-500">Points Balance: </span>
+                    <span className="text-gray-900 font-semibold">
+                      {isDevMode ? '-' : u.points_balance.toLocaleString()}
+                    </span>
+                  </div>
                   <p className="text-gray-500 text-xs">
                     Created {new Date(u.created_at).toLocaleDateString()}
                   </p>
@@ -447,6 +454,9 @@ export function UsersTableClient({
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider bg-gray-50">
                   Role
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider bg-gray-50">
+                  Points Balance
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider bg-gray-50">
                   Status
@@ -516,6 +526,14 @@ export function UsersTableClient({
                         >
                           {u.role}
                         </span>
+                      )}
+                    </td>
+
+                    <td className="px-4 py-3 text-sm font-medium text-gray-900">
+                      {isDevMode ? (
+                        <span className="text-gray-400">-</span>
+                      ) : (
+                        <span className="font-semibold">{u.points_balance.toLocaleString()}</span>
                       )}
                     </td>
 

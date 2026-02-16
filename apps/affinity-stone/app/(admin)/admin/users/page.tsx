@@ -14,13 +14,31 @@ export default async function AdminUsersPage() {
     const { supabase, user } = await requireAdmin();
     currentAdminId = user.id;
 
-    // Get all users with their points balance
-    const { data } = await supabase
+    // Get all users
+    const { data: profilesData } = await supabase
       .from('profiles')
       .select('id,email,full_name,role,active,created_at')
       .order('created_at', { ascending: false });
     
-    users = data || [];
+    // Get point balances for all users efficiently
+    const { data: pointsData } = await supabase
+      .from('points_ledger')
+      .select('user_id, delta_points');
+    
+    // Calculate balances by user
+    const balancesMap = new Map<string, number>();
+    if (pointsData) {
+      pointsData.forEach((entry: any) => {
+        const current = balancesMap.get(entry.user_id) || 0;
+        balancesMap.set(entry.user_id, current + entry.delta_points);
+      });
+    }
+    
+    // Combine users with their point balances
+    users = (profilesData || []).map((profile: any) => ({
+      ...profile,
+      points_balance: balancesMap.get(profile.id) || 0,
+    }));
 
     // Get pending access requests
     const { data: requests } = await supabase
@@ -40,6 +58,7 @@ export default async function AdminUsersPage() {
         role: 'admin',
         active: true,
         created_at: new Date().toISOString(),
+        points_balance: 0,
       },
       {
         id: '2',
@@ -48,6 +67,7 @@ export default async function AdminUsersPage() {
         role: 'user',
         active: true,
         created_at: new Date().toISOString(),
+        points_balance: 0,
       },
     ];
     // Mock access requests for dev mode
