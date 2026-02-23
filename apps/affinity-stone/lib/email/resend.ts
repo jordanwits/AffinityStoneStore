@@ -90,5 +90,49 @@ export function getAdminEmails(): string[] {
 }
 
 export function getSiteUrl(): string {
-  return process.env.NEXT_PUBLIC_SITE_URL || 'https://affinitystonestore.com';
+  const fallback = 'https://affinitystonestore.com';
+
+  const normalize = (raw: string): string => {
+    const trimmed = raw.trim();
+    if (!trimmed.length) return '';
+
+    // Allow passing "example.com" (no protocol) in env vars.
+    const withProtocol = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+
+    const url = new URL(withProtocol);
+    // Remove trailing slash for consistent URL joining.
+    return `${url.protocol}//${url.host}${url.pathname}`.replace(/\/+$/, '');
+  };
+
+  const isLocalHostUrl = (raw: string): boolean => {
+    try {
+      const u = new URL(/^https?:\/\//i.test(raw) ? raw : `https://${raw}`);
+      return u.hostname === 'localhost' || u.hostname === '127.0.0.1';
+    } catch {
+      return false;
+    }
+  };
+
+  const explicit = process.env.NEXT_PUBLIC_SITE_URL;
+  const vercelUrl = process.env.VERCEL_URL || process.env.NEXT_PUBLIC_VERCEL_URL;
+  const isProd = process.env.NODE_ENV === 'production';
+
+  // If we're on Vercel and the explicit site URL is localhost (common after duplicating),
+  // ignore it and use the actual deployed domain instead.
+  if (vercelUrl && explicit && isLocalHostUrl(explicit)) {
+    const normalized = normalize(vercelUrl);
+    if (normalized) return normalized;
+  }
+
+  if (explicit && !(isProd && isLocalHostUrl(explicit))) {
+    const normalized = normalize(explicit);
+    if (normalized) return normalized;
+  }
+
+  if (vercelUrl) {
+    const normalized = normalize(vercelUrl);
+    if (normalized) return normalized;
+  }
+
+  return fallback;
 }

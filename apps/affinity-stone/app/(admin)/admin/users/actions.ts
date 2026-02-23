@@ -235,7 +235,7 @@ export async function createUser(input: {
 
   // Generate invite link for the newly created user
   const siteUrl = getSiteUrl();
-  const redirectTo = `${siteUrl}/update-password`;
+  const redirectTo = new URL('/update-password', siteUrl).toString();
   
   const { data: linkData, error: linkError } = await supabase.auth.admin.generateLink({
     type: 'invite',
