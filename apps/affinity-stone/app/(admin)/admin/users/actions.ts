@@ -234,7 +234,14 @@ export async function createUser(input: {
   }
 
   // Generate invite link for the newly created user
-  const siteUrl = getSiteUrl();
+  let siteUrl = getSiteUrl();
+  
+  // CRITICAL: Never use localhost for invite links - force production URL
+  if (siteUrl.includes('localhost') || siteUrl.includes('127.0.0.1')) {
+    console.error('[Invite Link] CRITICAL: siteUrl is localhost, forcing production URL');
+    siteUrl = 'https://affinitystonestore.com';
+  }
+  
   const redirectTo = new URL('/update-password', siteUrl).toString();
   
   const { data: linkData, error: linkError } = await supabase.auth.admin.generateLink({
@@ -265,61 +272,71 @@ export async function createUser(input: {
   let inviteLink = linkData.properties.action_link;
   const originalLink = inviteLink;
   
-  try {
-    // Parse the URL to handle query parameters properly
-    const url = new URL(inviteLink);
-    
-    // Replace localhost in the base URL if present
-    if (url.hostname === 'localhost') {
-      url.hostname = new URL(siteUrl).hostname;
-      url.protocol = new URL(siteUrl).protocol;
-      // Preserve port if siteUrl has one, otherwise remove localhost port
-      const siteUrlObj = new URL(siteUrl);
-      if (siteUrlObj.port) {
-        url.port = siteUrlObj.port;
-      } else {
-        url.port = '';
-      }
+  // AGGRESSIVE REPLACEMENT: Replace ALL localhost URLs anywhere in the link string
+  // This handles base URLs, query parameters, hash fragments, etc.
+  const localhostPatterns = [
+    /https?:\/\/localhost(:\d+)?/gi,  // http://localhost or http://localhost:3000
+    /https?%3A%2F%2Flocalhost(%3A\d+)?/gi,  // URL-encoded localhost
+  ];
+  
+  for (const pattern of localhostPatterns) {
+    if (pattern.test(inviteLink)) {
+      inviteLink = inviteLink.replace(pattern, (match) => {
+        // If the match includes a path/query/hash, preserve it
+        // Otherwise just replace with siteUrl
+        const urlMatch = match.match(/^(https?:\/\/localhost(?::\d+)?)(.*)$/i) || 
+                        match.match(/^(https?%3A%2F%2Flocalhost(?:%3A\d+)?)(.*)$/i);
+        if (urlMatch && urlMatch[2]) {
+          // Has additional path/query/hash - preserve it
+          return siteUrl + urlMatch[2];
+        }
+        return siteUrl;
+      });
     }
-    
-    // Replace localhost URLs in query parameters (especially redirect_to)
+  }
+  
+  // Also handle URL-encoded localhost in query parameters
+  try {
+    const url = new URL(inviteLink);
     const searchParams = url.searchParams;
+    let paramsChanged = false;
+    
     for (const [key, value] of searchParams.entries()) {
-      // Check if the value is a URL containing localhost
-      if (value.includes('localhost')) {
-        try {
-          // Try to parse as URL
-          const valueUrl = new URL(value);
-          if (valueUrl.hostname === 'localhost') {
-            // Replace with production URL, preserving path
-            const newUrl = new URL(siteUrl);
-            newUrl.pathname = valueUrl.pathname;
-            newUrl.search = valueUrl.search;
-            newUrl.hash = valueUrl.hash;
-            searchParams.set(key, newUrl.toString());
-          }
-        } catch {
-          // If not a valid URL, do simple string replacement
-          const updatedValue = value.replace(/https?:\/\/localhost(:\d+)?/gi, siteUrl);
-          if (updatedValue !== value) {
-            searchParams.set(key, updatedValue);
-          }
+      // Decode and check for localhost
+      const decoded = decodeURIComponent(value);
+      if (decoded.includes('localhost')) {
+        // Replace localhost URLs in the decoded value
+        const updated = decoded.replace(/https?:\/\/localhost(:\d+)?/gi, siteUrl);
+        if (updated !== decoded) {
+          searchParams.set(key, updated);
+          paramsChanged = true;
         }
       }
     }
     
-    inviteLink = url.toString();
+    if (paramsChanged) {
+      inviteLink = url.toString();
+    }
   } catch (error) {
-    // Fallback: simple regex replacement if URL parsing fails
-    console.error('[Invite Link] Error parsing URL, using regex fallback:', error);
-    const localhostPattern = /https?:\/\/localhost(:\d+)?/gi;
-    inviteLink = inviteLink.replace(localhostPattern, siteUrl);
+    // If URL parsing fails, the regex replacement above should have caught it
+    console.error('[Invite Link] Error parsing URL for query param replacement:', error);
+  }
+  
+  // Final safety check: if link still contains localhost, do one more aggressive replacement
+  if (inviteLink.includes('localhost')) {
+    console.warn('[Invite Link] Still contains localhost after replacement, doing final cleanup');
+    inviteLink = inviteLink.replace(/https?:\/\/localhost(:\d+)?/gi, siteUrl);
+    inviteLink = inviteLink.replace(/https?%3A%2F%2Flocalhost(%3A\d+)?/gi, encodeURIComponent(siteUrl));
   }
   
   if (inviteLink !== originalLink) {
     console.log('[Invite Link] Replaced localhost URLs with production URL');
     console.log('[Invite Link] Original:', originalLink);
     console.log('[Invite Link] Updated:', inviteLink);
+  } else {
+    console.warn('[Invite Link] No localhost URLs found to replace - this might be an issue');
+    console.log('[Invite Link] Site URL being used:', siteUrl);
+    console.log('[Invite Link] Generated link:', inviteLink);
   }
 
   // Send invite email via Resend (using verified domain)
