@@ -259,8 +259,20 @@ export async function createUser(input: {
     return { success: false, error: 'Failed to generate invite link. Please try again.' };
   }
 
+  // Replace any localhost URLs in the generated link with the production site URL
+  // Supabase generates links using its configured site URL, which might be localhost
+  // This can appear in the base URL or in query parameters like redirect_to
+  let inviteLink = linkData.properties.action_link;
+  const localhostPattern = /https?:\/\/localhost(:\d+)?/g;
+  
+  // Replace all occurrences of localhost URLs with the production site URL
+  // This handles both base URLs and URLs in query parameters
+  if (localhostPattern.test(inviteLink)) {
+    inviteLink = inviteLink.replace(localhostPattern, siteUrl);
+    console.log('[Invite Link] Replaced localhost URLs with production URL');
+  }
+
   // Send invite email via Resend (using verified domain)
-  const inviteLink = linkData.properties.action_link;
   const emailResult = await sendInviteEmail({
     email: input.email.trim(),
     fullName: input.fullName?.trim() || null,
