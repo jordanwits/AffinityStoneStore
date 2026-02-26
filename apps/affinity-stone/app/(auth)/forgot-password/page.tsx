@@ -2,11 +2,11 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { createClient } from '@/lib/supabase/client';
 import { Button } from 'core/components/Button';
 import { Input } from 'core/components/Input';
 import { Card, CardHeader, CardContent } from 'core/components/Card';
 import { BrandMark } from 'core/components/BrandMark';
+import { sendPasswordResetEmail } from './actions';
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
@@ -14,7 +14,6 @@ export default function ForgotPasswordPage() {
   const [success, setSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
   const router = useRouter();
-  const supabase = createClient();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -23,15 +22,10 @@ export default function ForgotPasswordPage() {
     setLoading(true);
 
     try {
-      const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://affinitystonestore.com';
-      const redirectTo = `${siteUrl}/update-password`;
+      const result = await sendPasswordResetEmail(email);
 
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo,
-      });
-
-      if (error) {
-        setError(error.message);
+      if (!result.success && result.error) {
+        setError(result.error);
       } else {
         setSuccess(true);
       }

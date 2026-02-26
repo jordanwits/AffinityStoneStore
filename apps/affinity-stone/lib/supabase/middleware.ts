@@ -60,13 +60,27 @@ export async function updateSession(request: NextRequest) {
   // We can usually trust the session cookie and only refresh when nearing expiry.
   const refreshGraceMs = 2 * 60 * 1000; // refresh if expiring in next 2 minutes
 
+  function clearSupabaseAuthCookies(response: NextResponse) {
+    request.cookies.getAll().forEach((cookie) => {
+      if (cookie.name.startsWith('sb-')) {
+        response.cookies.delete(cookie.name);
+      }
+    });
+  }
+
   let session;
+  let hadRefreshTokenError = false;
   try {
     const sessionResult = await supabase.auth.getSession();
     session = sessionResult.data?.session;
+    if (sessionResult.error?.message?.includes('Refresh Token')) {
+      hadRefreshTokenError = true;
+    }
   } catch (error) {
     // If session retrieval fails (e.g., invalid refresh token), treat as unauthenticated
     session = null;
+    hadRefreshTokenError =
+      error instanceof Error && error.message.includes('Refresh Token');
   }
 
   const expiresAtMs = session?.expires_at ? session.expires_at * 1000 : 0;
@@ -84,14 +98,24 @@ export async function updateSession(request: NextRequest) {
       // If refresh fails (e.g., invalid refresh token), treat as unauthenticated
       // This is expected after logout or token expiration
       isAuthenticated = false;
+      hadRefreshTokenError =
+        error instanceof Error && error.message.includes('Refresh Token');
     }
+  }
+
+  if (hadRefreshTokenError) {
+    clearSupabaseAuthCookies(supabaseResponse);
   }
 
   if (isAppRoute && !isAuthenticated) {
     // Redirect to login if trying to access protected route without auth
     const url = request.nextUrl.clone();
     url.pathname = '/login';
-    return NextResponse.redirect(url);
+    const redirectResponse = NextResponse.redirect(url);
+    if (hadRefreshTokenError) {
+      clearSupabaseAuthCookies(redirectResponse);
+    }
+    return redirectResponse;
   }
 
   if (isAuthRoute && isAuthenticated) {
