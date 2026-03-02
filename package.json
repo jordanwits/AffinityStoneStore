@@ -7,7 +7,11 @@
     "dev:turbo": "pnpm --filter affinity-stone dev:turbo",
     "build": "pnpm --filter affinity-stone build",
     "start": "pnpm --filter affinity-stone start",
-    "lint": "pnpm --filter affinity-stone lint"
+    "lint": "pnpm --filter affinity-stone lint",
+    "generate-overview-pdf": "node scripts/generate-app-overview-pdf.js"
+  },
+  "devDependencies": {
+    "pdfkit": "^0.15.0"
   },
   "engines": {
     "node": ">=18.0.0",

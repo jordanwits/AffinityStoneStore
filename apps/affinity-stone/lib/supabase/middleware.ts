@@ -26,7 +26,9 @@ export async function updateSession(request: NextRequest) {
     pathname.startsWith('/update-password') ||
     pathname.startsWith('/forgot-password');
 
-  if (!isAppRoute && !isAuthRoute) {
+  const isMarketingHome = pathname === '/home' || pathname === '/';
+
+  if (!isAppRoute && !isAuthRoute && !isMarketingHome) {
     return supabaseResponse;
   }
 
@@ -126,6 +128,13 @@ export async function updateSession(request: NextRequest) {
       url.pathname = '/dashboard';
       return NextResponse.redirect(url);
     }
+  }
+
+  // Redirect logged-in users from marketing home to dashboard (avoids NEXT_REDIRECT in page component)
+  if (isMarketingHome && isAuthenticated) {
+    const url = request.nextUrl.clone();
+    url.pathname = '/dashboard';
+    return NextResponse.redirect(url);
   }
 
   return supabaseResponse;

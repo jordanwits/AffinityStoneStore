@@ -4,13 +4,24 @@ import { affinityBranding } from "../branding";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import "./globals.css";
 
+const faviconPath = '/Affinity Favicon.png';
+
 export const metadata: Metadata = {
   title: `${affinityBranding.appName} - Rewards Merch Shop`,
   description: `Redeem your points for branded merchandise at ${affinityBranding.appName}`,
+  icons: {
+    icon: faviconPath,
+    apple: faviconPath,
+  },
   // Performance optimizations
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'https://affinitystonestore.com'),
   openGraph: {
     type: 'website',
+    images: [faviconPath],
+  },
+  twitter: {
+    card: 'summary',
+    images: [faviconPath],
   },
   // Optimize robots and indexing
   robots: {

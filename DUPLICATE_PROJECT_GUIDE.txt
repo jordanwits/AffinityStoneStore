@@ -1,0 +1,166 @@
+DUPLICATING PROJECT FOR NEW COMPANY
+==================================
+
+This guide walks you through duplicating the MerchShop project for a completely separate company with:
+- Separate database (new Supabase project)
+- Separate hosting (new Vercel project)
+- Separate branding
+- Complete isolation from the original app
+
+STEP 1: PREPARE NEW COMPANY INFORMATION
+---------------------------------------
+Before starting, gather:
+- Company name (e.g., "Acme Corp")
+- App name (e.g., "Acme Rewards")
+- Primary brand color (hex code)
+- Secondary brand color (hex code)
+- Logo file (PNG format, recommended: 200x200px or larger)
+- Domain name (if known, e.g., "acme-rewards.com")
+- Email domain for notifications (e.g., "info@acme-rewards.com")
+
+STEP 2: DUPLICATE THE APP DIRECTORY
+----------------------------------
+1. Copy the entire apps/affinity-stone directory:
+   PowerShell: Copy-Item -Path "apps\affinity-stone" -Destination "apps\[new-company-name]" -Recurse
+
+2. Replace [new-company-name] with a kebab-case version of the company name
+   Example: "acme-corp" or "acme-rewards"
+
+STEP 3: UPDATE BRANDING CONFIGURATION
+-----------------------------------
+1. Edit apps/[new-company-name]/branding.ts
+2. Update all values:
+   - appName: Full app name
+   - logoText: Short company name
+   - logo.src: Path to logo file (e.g., "/Acme Logo.png")
+   - colors.primary: Primary brand color hex
+   - colors.secondary: Secondary brand color hex
+   - domain: kebab-case identifier
+
+3. Copy logo file to apps/[new-company-name]/public/[Logo Name].png
+
+STEP 4: UPDATE PACKAGE.JSON
+--------------------------
+1. Edit apps/[new-company-name]/package.json
+2. Change "name" field from "affinity-stone" to "[new-company-name]"
+
+STEP 5: UPDATE ROOT PACKAGE.JSON SCRIPTS
+---------------------------------------
+Edit the root package.json to add scripts for the new app:
+- "dev:[new-company]": "pnpm --filter [new-company-name] dev"
+- "build:[new-company]": "pnpm --filter [new-company-name] build"
+- "start:[new-company]": "pnpm --filter [new-company-name] start"
+- "lint:[new-company]": "pnpm --filter [new-company-name] lint"
+
+STEP 6: UPDATE VERCEL.JSON (IF NEEDED)
+-------------------------------------
+If deploying to a separate Vercel project, update:
+- buildCommand: Change filter to [new-company-name]
+- devCommand: Change filter to [new-company-name]
+
+Alternatively, create a separate vercel.json in the new app directory.
+
+STEP 7: CREATE NEW SUPABASE PROJECT
+----------------------------------
+1. Go to https://app.supabase.com
+2. Click "New Project"
+3. Choose organization
+4. Set project name: "[Company Name] Merch Shop"
+5. Set database password (save it securely!)
+6. Choose region (same as original for consistency)
+7. Wait for project to be created (2-3 minutes)
+
+STEP 8: RUN DATABASE MIGRATIONS
+------------------------------
+1. In Supabase dashboard, go to SQL Editor
+2. Run migrations in order from apps/[new-company-name]/supabase/migrations/:
+   - 001_initial_schema.sql
+   - 002_rls_policies.sql
+   - 003_seed_data.sql (optional - creates sample products)
+   - Any other migrations in numerical order
+
+3. Verify migrations succeeded (check for errors)
+
+STEP 9: GET SUPABASE CREDENTIALS
+--------------------------------
+1. In Supabase dashboard, go to Project Settings > API
+2. Copy these values:
+   - Project URL (e.g., https://xxxxx.supabase.co)
+   - anon/public key
+   - service_role key
+
+STEP 10: CREATE ENVIRONMENT VARIABLES
+-------------------------------------
+1. Create apps/[new-company-name]/.env.local
+2. Add these variables:
+
+NEXT_PUBLIC_SUPABASE_URL=https://your-new-project.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key-here
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key-here
+NEXT_PUBLIC_SITE_URL=http://localhost:3000
+
+# Optional: Email notifications
+RESEND_API_KEY=your-resend-api-key
+FROM_EMAIL=info@yourdomain.com
+ADMIN_NOTIFICATION_EMAILS=admin@yourdomain.com
+
+STEP 11: CREATE FIRST ADMIN USER
+--------------------------------
+1. In Supabase dashboard, go to Authentication > Users
+2. Click "Add User"
+3. Create user with email/password
+4. In SQL Editor, run:
+   UPDATE profiles 
+   SET role = 'admin' 
+   WHERE email = 'your-admin@company.com';
+
+STEP 12: UPDATE METADATA IN LAYOUT
+---------------------------------
+Edit apps/[new-company-name]/app/layout.tsx:
+- Update metadataBase URL if you have a custom domain
+- Metadata will automatically use branding.appName
+
+STEP 13: TEST LOCALLY
+--------------------
+1. Install dependencies: pnpm install
+2. Run dev server: pnpm dev:[new-company]
+3. Visit http://localhost:3000
+4. Login with admin credentials
+5. Verify branding appears correctly
+6. Test key features (catalog, cart, checkout)
+
+STEP 14: DEPLOY TO VERCEL
+------------------------
+1. Go to https://vercel.com
+2. Click "Add New Project"
+3. Import your Git repository
+4. Configure project:
+   - Framework Preset: Next.js
+   - Root Directory: (leave empty or set to apps/[new-company-name] if needed)
+   - Build Command: cd ../.. && pnpm --filter [new-company-name] build
+   - Output Directory: .next
+   - Install Command: cd ../.. && pnpm install
+5. Add environment variables (same as .env.local)
+6. Deploy
+
+STEP 15: CONFIGURE CUSTOM DOMAIN (OPTIONAL)
+------------------------------------------
+1. In Vercel project settings, go to Domains
+2. Add your custom domain
+3. Update NEXT_PUBLIC_SITE_URL in Vercel environment variables
+4. Update metadataBase in layout.tsx
+
+IMPORTANT NOTES
+--------------
+- Each app is completely isolated - separate databases, separate deployments
+- Shared components in packages/core are used by all apps
+- To update shared components, edit packages/core and rebuild all apps
+- Each app can have different branding, products, users, etc.
+- No data sharing between apps
+
+TROUBLESHOOTING
+--------------
+- If build fails, check that package.json name matches the filter
+- If Supabase connection fails, verify .env.local has correct credentials
+- If branding doesn't appear, check logo file path in branding.ts
+- If admin link doesn't show, verify user role in Supabase profiles table
