@@ -10,6 +10,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { PrintOrderButton, ContactSupportButton } from './OrderActions';
 import { getTrackingUrl } from '@/lib/tracking';
+import { FormattedDate } from 'core/components/FormattedDate';
 
 export default async function OrderDetailPage({
   params,
@@ -138,13 +139,7 @@ export default async function OrderDetailPage({
             Order #{order.id.slice(0, 8).toUpperCase()}
           </h1>
           <p className="text-gray-600">
-            Placed on {new Date(order.created_at).toLocaleDateString('en-US', { 
-              month: 'long', 
-              day: 'numeric', 
-              year: 'numeric',
-              hour: '2-digit',
-              minute: '2-digit'
-            })}
+            Placed on <FormattedDate date={order.created_at} format="long" />
           </p>
         </div>
         <div className="flex flex-wrap gap-3">

@@ -6,6 +6,7 @@ import { OrderStatusEditor } from './OrderStatusEditor';
 import { OrderActions } from './OrderActions';
 import { getTrackingUrl } from '@/lib/tracking';
 import Link from 'next/link';
+import { FormattedDate } from 'core/components/FormattedDate';
 
 export default async function AdminOrderDetailPage({
   params,
@@ -59,7 +60,7 @@ export default async function AdminOrderDetailPage({
             Order #{order.id.slice(0, 8).toUpperCase()}
           </h1>
           <p className="text-gray-700">
-            Placed on {new Date(order.created_at).toLocaleString()}
+            Placed on <FormattedDate date={order.created_at} format="datetimeShort" />
           </p>
         </div>
         <div className="flex flex-col gap-4 items-stretch sm:items-end w-full sm:w-auto">

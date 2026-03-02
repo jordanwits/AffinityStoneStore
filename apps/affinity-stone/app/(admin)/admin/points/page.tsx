@@ -9,6 +9,7 @@ import { BulkPointsUpload } from './BulkPointsUpload';
 import { AdminHistoryFilters } from './AdminHistoryFilters';
 import { AdminRecentTransactionsCard } from './AdminRecentTransactionsCard';
 import { FilterDrawer } from 'core/components/FilterDrawer';
+import { FormattedDate } from 'core/components/FormattedDate';
 
 interface AdminPointsPageProps {
   searchParams: Promise<{
@@ -406,13 +407,7 @@ export default async function AdminPointsPage({ searchParams }: AdminPointsPageP
                                   {entry.profiles?.email || 'Unknown user'}
                                 </p>
                                 <p className="text-sm text-gray-500">
-                                  {new Date(entry.created_at).toLocaleDateString('en-US', { 
-                                    month: 'short', 
-                                    day: 'numeric', 
-                                    year: 'numeric',
-                                    hour: 'numeric',
-                                    minute: '2-digit'
-                                  })}
+                                  <FormattedDate date={entry.created_at} format="datetimeShort" />
                                 </p>
                               </div>
                             </div>

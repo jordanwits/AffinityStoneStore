@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server';
 import { Card, CardHeader, CardContent } from 'core/components/Card';
 import { Badge } from 'core/components/Badge';
 import Link from 'next/link';
+import { FormattedDate } from 'core/components/FormattedDate';
 
 interface AdminRecentTransactionsCardProps {
   isDevMode: boolean;
@@ -116,13 +117,7 @@ export async function AdminRecentTransactionsCard({ isDevMode }: AdminRecentTran
                           {entry.profiles?.email || 'Unknown user'}
                         </p>
                         <p className="text-sm text-gray-500">
-                          {new Date(entry.created_at).toLocaleDateString('en-US', { 
-                            month: 'short', 
-                            day: 'numeric', 
-                            year: 'numeric',
-                            hour: 'numeric',
-                            minute: '2-digit'
-                          })}
+                          <FormattedDate date={entry.created_at} format="datetimeShort" />
                         </p>
                       </div>
                     </div>
