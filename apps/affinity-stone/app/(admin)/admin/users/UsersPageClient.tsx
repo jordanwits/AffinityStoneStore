@@ -1,11 +1,13 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useTransition } from 'react';
+import { useRouter } from 'next/navigation';
 import { Button } from 'core/components/Button';
 import { Card, CardHeader, CardContent } from 'core/components/Card';
 import { UsersTableClient } from './UsersTableClient';
 import { FormattedDate } from 'core/components/FormattedDate';
 import { CreateUserModal } from './CreateUserModal';
+import { declineAccessRequest } from './actions';
 
 type UserRow = {
   id: string;
@@ -36,6 +38,24 @@ interface UsersPageClientProps {
 export function UsersPageClient({ isDevMode, users, accessRequests, currentAdminId }: UsersPageClientProps) {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [initialFormData, setInitialFormData] = useState<{ email?: string; fullName?: string } | null>(null);
+  const [decliningId, setDecliningId] = useState<string | null>(null);
+  const [, startTransition] = useTransition();
+  const router = useRouter();
+
+  const handleDecline = (e: React.MouseEvent, requestId: string) => {
+    e.stopPropagation();
+    if (isDevMode || decliningId) return;
+    setDecliningId(requestId);
+    startTransition(async () => {
+      const result = await declineAccessRequest({ requestId });
+      setDecliningId(null);
+      if (result.success) {
+        router.refresh();
+      } else {
+        console.error('Failed to decline:', result.error);
+      }
+    });
+  };
 
   return (
     <div>
@@ -110,19 +130,31 @@ export function UsersPageClient({ isDevMode, users, accessRequests, currentAdmin
                         Requested <FormattedDate date={request.created_at} format="date" />
                       </p>
                     </div>
-                    <svg
-                      className="w-5 h-5 text-gray-400 shrink-0 mt-1"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M9 5l7 7-7 7"
-                      />
-                    </svg>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={(e) => handleDecline(e, request.id)}
+                        disabled={isDevMode || decliningId === request.id}
+                        className="text-red-600 hover:bg-red-50 border-red-200"
+                      >
+                        {decliningId === request.id ? 'Declining...' : 'Decline'}
+                      </Button>
+                      <svg
+                        className="w-5 h-5 text-gray-400 shrink-0 mt-1"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                        aria-hidden
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M9 5l7 7-7 7"
+                        />
+                      </svg>
+                    </div>
                   </div>
                 </div>
               ))}

@@ -191,6 +191,35 @@ export async function deleteUser(input: {
   return { success: true };
 }
 
+export async function declineAccessRequest(input: {
+  requestId: string;
+}): Promise<UpdateUserProfileResult> {
+  if (isDevMode()) {
+    return { success: false, error: 'Declining requests requires Supabase to be configured.' };
+  }
+
+  if (!input?.requestId) {
+    return { success: false, error: 'Request ID is required' };
+  }
+
+  const { supabase } = await requireAdmin();
+
+  const { error } = await supabase
+    .from('access_requests')
+    .delete()
+    .eq('id', input.requestId);
+
+  if (error) {
+    console.error('Error declining access request:', error);
+    return { success: false, error: error.message || 'Failed to decline request' };
+  }
+
+  revalidatePath('/admin/users');
+  revalidatePath('/admin');
+
+  return { success: true };
+}
+
 export async function createUser(input: {
   email: string;
   fullName?: string;
