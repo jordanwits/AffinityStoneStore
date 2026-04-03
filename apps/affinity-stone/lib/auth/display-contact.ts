@@ -11,3 +11,14 @@ export function displayProfileContact(
   if (p) return formatStoredPhoneForDisplay(p);
   return '—';
 }
+
+/** Prefer full name; fall back to email or formatted phone for labels. */
+export function displayProfileName(
+  fullName: string | null | undefined,
+  email: string | null | undefined,
+  phone: string | null | undefined
+): string {
+  const n = fullName?.trim();
+  if (n) return n;
+  return displayProfileContact(email, phone);
+}

@@ -13,7 +13,7 @@ export default async function AdminDashboardPage() {
   let productsCount = 0;
   let ordersCount = 0;
   let recentOrders: any[] = [];
-  
+
   if (!isDevMode) {
     const supabase = await createClient();
 
