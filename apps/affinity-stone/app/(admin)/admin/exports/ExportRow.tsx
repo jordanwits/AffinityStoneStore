@@ -6,6 +6,7 @@ import { Badge } from 'core/components/Badge';
 import { ConfirmModal } from 'core/components/ConfirmModal';
 import { deleteExport, getExportDownloadUrl } from './actions';
 import { FormattedDate } from 'core/components/FormattedDate';
+import { displayProfileContact } from '@/lib/auth/display-contact';
 
 interface ExportRowProps {
   exportRecord: any;
@@ -90,8 +91,10 @@ export function ExportRow({ exportRecord, isDevMode }: ExportRowProps) {
         </td>
         <td className="py-4 pr-4 text-sm text-gray-600">
           <div><FormattedDate date={exportRecord.created_at} format="datetimeShort" /></div>
-          {exportRecord.profiles?.email && (
-            <div className="text-xs text-gray-500 mt-0.5">by {exportRecord.profiles.email}</div>
+          {exportRecord.profiles && (
+            <div className="text-xs text-gray-500 mt-0.5">
+              by {displayProfileContact(exportRecord.profiles.email, exportRecord.profiles.phone)}
+            </div>
           )}
         </td>
         <td className="py-4 text-sm">

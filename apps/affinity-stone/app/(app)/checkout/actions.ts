@@ -7,6 +7,7 @@ import type { Cart, CartItem } from '@/lib/cart/types';
 import { sendEmail, getAdminEmails } from '@/lib/email/resend';
 import { customerOrderConfirmationEmail, adminNewOrderEmail } from '@/lib/email/templates';
 import { getStoreSettings, getProductsByIds, getVariantsByProductIds } from '@/lib/cache/store-data';
+import { displayProfileContact } from '@/lib/auth/display-contact';
 
 interface PlaceOrderResult {
   success: boolean;
@@ -185,23 +186,32 @@ export async function placeOrder(formData: FormData): Promise<PlaceOrderResult> 
       
       if (orderDetails) {
         const orderNumber = orderId.slice(0, 8).toUpperCase();
+        const { data: profileRow } = await supabase
+          .from('profiles')
+          .select('email, phone')
+          .eq('id', user.id)
+          .single();
+        const profileEmail = profileRow?.email?.trim() || '';
+        const customerLabel = displayProfileContact(profileRow?.email, profileRow?.phone);
+
         const emailData = {
           orderId: orderId,
           orderNumber,
-          customerEmail: user.email || '',
+          customerEmail: profileEmail || user.email || '',
+          customerDisplayLabel: customerLabel !== '—' ? customerLabel : profileEmail || user.email || '',
           totalPoints: orderDetails.total_points,
           itemCount: items.reduce((sum, item) => sum + item.quantity, 0),
           deliveryMethod: orderDetails.delivery_method,
           createdAt: orderDetails.created_at,
         };
-        
-        // Send customer confirmation (don't wait)
-        sendEmail({
-          to: user.email || '',
-          ...customerOrderConfirmationEmail(emailData),
-        }).catch(err => console.error('Failed to send customer email:', err));
-        
-        // Send admin notification (don't wait)
+
+        if (profileEmail) {
+          sendEmail({
+            to: profileEmail,
+            ...customerOrderConfirmationEmail(emailData),
+          }).catch(err => console.error('Failed to send customer email:', err));
+        }
+
         const adminEmails = getAdminEmails();
         if (adminEmails.length > 0) {
           sendEmail({

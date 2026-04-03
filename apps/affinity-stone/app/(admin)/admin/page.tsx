@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server';
 import { Card, CardHeader, CardContent } from 'core/components/Card';
 import { FormattedDate } from 'core/components/FormattedDate';
 import Link from 'next/link';
+import { displayProfileContact } from '@/lib/auth/display-contact';
 
 export default async function AdminDashboardPage() {
   // Check if using placeholder Supabase (dev mode)
@@ -21,7 +22,7 @@ export default async function AdminDashboardPage() {
       supabase.from('profiles').select('*', { count: 'exact', head: true }),
       supabase.from('products').select('*', { count: 'exact', head: true }).eq('active', true),
       supabase.from('orders').select('*', { count: 'exact', head: true }),
-      supabase.from('orders').select('*, profiles(email)').order('created_at', { ascending: false }).limit(5),
+      supabase.from('orders').select('*, profiles(email, phone)').order('created_at', { ascending: false }).limit(5),
     ]);
 
     usersCount = usersResult.count || 0;
@@ -152,7 +153,9 @@ export default async function AdminDashboardPage() {
                         {order.status}
                       </span>
                     </div>
-                    <p className="text-sm text-gray-900 truncate mb-1">{order.profiles?.email || 'N/A'}</p>
+                    <p className="text-sm text-gray-900 truncate mb-1">
+                        {displayProfileContact(order.profiles?.email, order.profiles?.phone)}
+                      </p>
                     <div className="flex flex-wrap gap-2 text-sm">
                       <span
                         className={`px-2 py-0.5 rounded text-xs font-medium ${
@@ -207,7 +210,9 @@ export default async function AdminDashboardPage() {
                           {order.id.slice(0, 8)}
                         </Link>
                       </td>
-                      <td className="px-4 py-3 text-sm text-gray-900">{order.profiles?.email || 'N/A'}</td>
+                      <td className="px-4 py-3 text-sm text-gray-900">
+                        {displayProfileContact(order.profiles?.email, order.profiles?.phone)}
+                      </td>
                       <td className="px-4 py-3 text-sm">
                         <span
                           className={`px-2 py-1 rounded-full text-xs font-medium ${

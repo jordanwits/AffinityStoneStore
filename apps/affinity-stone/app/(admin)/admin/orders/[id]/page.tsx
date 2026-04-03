@@ -7,6 +7,7 @@ import { OrderActions } from './OrderActions';
 import { getTrackingUrl } from '@/lib/tracking';
 import Link from 'next/link';
 import { FormattedDate } from 'core/components/FormattedDate';
+import { displayProfileContact } from '@/lib/auth/display-contact';
 
 export default async function AdminOrderDetailPage({
   params,
@@ -29,7 +30,7 @@ export default async function AdminOrderDetailPage({
   const [orderResult, itemsResult, refundCheck] = await Promise.all([
     supabase
       .from('orders')
-      .select('*, profiles(email, full_name)')
+      .select('*, profiles(email, phone, full_name)')
       .eq('id', id)
       .single(),
     supabase
@@ -87,8 +88,10 @@ export default async function AdminOrderDetailPage({
           <CardContent>
             <div className="space-y-2">
               <div>
-                <p className="text-sm text-gray-700 font-medium">Email</p>
-                <p className="font-medium text-gray-900 mt-1">{(order as any).profiles?.email || 'N/A'}</p>
+                <p className="text-sm text-gray-700 font-medium">Contact</p>
+                <p className="font-medium text-gray-900 mt-1">
+                  {displayProfileContact((order as any).profiles?.email, (order as any).profiles?.phone)}
+                </p>
               </div>
               <div>
                 <p className="text-sm text-gray-700 font-medium">Full Name</p>

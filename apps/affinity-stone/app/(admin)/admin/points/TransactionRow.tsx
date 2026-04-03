@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { FormattedDate } from 'core/components/FormattedDate';
+import { displayProfileContact } from '@/lib/auth/display-contact';
 
 interface Transaction {
   id: string;
@@ -10,7 +11,8 @@ interface Transaction {
   order_id?: string | null;
   created_at: string;
   profiles?: {
-    email: string;
+    email: string | null;
+    phone?: string | null;
   } | null;
 }
 
@@ -26,7 +28,7 @@ export function TransactionRow({ transaction }: TransactionRowProps) {
       <tr className="group">
         <td className="px-4 py-5 text-sm text-gray-900 group-hover:bg-blue-50 transition-colors">
           <Link href={`/admin/orders/${transaction.order_id}`} className="block">
-            {transaction.profiles?.email || 'N/A'}
+            {displayProfileContact(transaction.profiles?.email, transaction.profiles?.phone)}
           </Link>
         </td>
         <td className="px-4 py-5 text-sm group-hover:bg-blue-50 transition-colors">
@@ -74,7 +76,7 @@ export function TransactionRow({ transaction }: TransactionRowProps) {
   return (
     <tr>
       <td className="px-4 py-5 text-sm text-gray-900">
-        {transaction.profiles?.email || 'N/A'}
+        {displayProfileContact(transaction.profiles?.email, transaction.profiles?.phone)}
       </td>
       <td className="px-4 py-5 text-sm">
         <span

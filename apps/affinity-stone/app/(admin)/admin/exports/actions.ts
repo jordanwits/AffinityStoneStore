@@ -320,7 +320,7 @@ export async function getExports() {
       .from('monthly_exports')
       .select(`
         *,
-        profiles(email)
+        profiles(email, phone)
       `)
       .order('month', { ascending: false });
 

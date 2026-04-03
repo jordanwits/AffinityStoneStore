@@ -1,5 +1,7 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
+import type { User } from '@supabase/supabase-js';
+import { userMustChangePassword } from '@/lib/auth/must-change-password';
 
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
@@ -18,6 +20,7 @@ export async function updateSession(request: NextRequest) {
     pathname.startsWith('/checkout') ||
     pathname.startsWith('/orders') ||
     pathname.startsWith('/points-history') ||
+    pathname.startsWith('/profile') ||
     pathname.startsWith('/admin');
 
   const isAuthRoute =
@@ -89,12 +92,14 @@ export async function updateSession(request: NextRequest) {
   const shouldRefresh = !session || (expiresAtMs > 0 && expiresAtMs - Date.now() < refreshGraceMs);
 
   let isAuthenticated = Boolean(session?.access_token);
+  let userForPasswordGate: User | null = null;
 
   if (shouldRefresh) {
     try {
       const {
         data: { user: refreshedUser },
       } = await supabase.auth.getUser();
+      userForPasswordGate = refreshedUser;
       isAuthenticated = Boolean(refreshedUser);
     } catch (error) {
       // If refresh fails (e.g., invalid refresh token), treat as unauthenticated
@@ -103,7 +108,23 @@ export async function updateSession(request: NextRequest) {
       hadRefreshTokenError =
         error instanceof Error && error.message.includes('Refresh Token');
     }
+  } else if (isAuthenticated) {
+    try {
+      const {
+        data: { user: sessionUser },
+      } = await supabase.auth.getUser();
+      userForPasswordGate = sessionUser;
+    } catch {
+      userForPasswordGate = null;
+    }
   }
+
+  const passwordChangeRequired =
+    isAuthenticated && Boolean(userForPasswordGate) && userMustChangePassword(userForPasswordGate);
+
+  const isPasswordChangeExempt =
+    pathname.startsWith('/update-password') ||
+    pathname.startsWith('/logout');
 
   if (hadRefreshTokenError) {
     clearSupabaseAuthCookies(supabaseResponse);
@@ -120,12 +141,29 @@ export async function updateSession(request: NextRequest) {
     return redirectResponse;
   }
 
+  if (passwordChangeRequired && !isPasswordChangeExempt && isAppRoute) {
+    const url = request.nextUrl.clone();
+    url.pathname = '/update-password';
+    url.searchParams.set('required', '1');
+    return NextResponse.redirect(url);
+  }
+
+  if (passwordChangeRequired && !isPasswordChangeExempt && isAuthRoute && pathname.startsWith('/forgot-password')) {
+    const url = request.nextUrl.clone();
+    url.pathname = '/update-password';
+    url.searchParams.set('required', '1');
+    return NextResponse.redirect(url);
+  }
+
   if (isAuthRoute && isAuthenticated) {
-    // Redirect to dashboard if already logged in and trying to access login
-    // But allow /update-password to process password reset tokens
     if (request.nextUrl.pathname === '/login') {
       const url = request.nextUrl.clone();
-      url.pathname = '/dashboard';
+      if (passwordChangeRequired) {
+        url.pathname = '/update-password';
+        url.searchParams.set('required', '1');
+      } else {
+        url.pathname = '/dashboard';
+      }
       return NextResponse.redirect(url);
     }
   }
@@ -133,7 +171,12 @@ export async function updateSession(request: NextRequest) {
   // Redirect logged-in users from marketing home to dashboard (avoids NEXT_REDIRECT in page component)
   if (isMarketingHome && isAuthenticated) {
     const url = request.nextUrl.clone();
-    url.pathname = '/dashboard';
+    if (passwordChangeRequired) {
+      url.pathname = '/update-password';
+      url.searchParams.set('required', '1');
+    } else {
+      url.pathname = '/dashboard';
+    }
     return NextResponse.redirect(url);
   }
 

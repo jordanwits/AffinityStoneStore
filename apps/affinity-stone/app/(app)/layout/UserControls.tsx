@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import MobileMenu from './MobileMenu';
 import { createClient } from '@/lib/supabase/client';
+import { displayProfileContact } from '@/lib/auth/display-contact';
 
 type UserControlsProps = {
   isDevMode: boolean;
@@ -37,11 +38,9 @@ export default function UserControls({ isDevMode }: UserControlsProps) {
         data: { user },
       } = await supabase.auth.getUser();
 
-      if (cancelled) return;
-      setEmail(user?.email || '');
-
       if (!user) {
-        // Should be rare because middleware protects app routes, but keep UI safe.
+        if (cancelled) return;
+        setEmail('');
         setIsAdmin(false);
         setLoaded(true);
         return;
@@ -49,12 +48,14 @@ export default function UserControls({ isDevMode }: UserControlsProps) {
 
       const { data: profile } = await supabase
         .from('profiles')
-        .select('role, active')
+        .select('role, active, email, phone')
         .eq('id', user.id)
         .single();
 
       if (cancelled) return;
-      const p = profile as ProfileRow | null;
+      const p = profile as (ProfileRow & { email?: string | null; phone?: string | null }) | null;
+      const contact = displayProfileContact(p?.email, p?.phone);
+      setEmail(contact !== '—' ? contact : user.email || '');
       setIsAdmin(p?.role === 'admin' && p?.active !== false);
       setLoaded(true);
     }

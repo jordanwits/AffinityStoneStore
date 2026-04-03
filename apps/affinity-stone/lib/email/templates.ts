@@ -5,6 +5,8 @@ interface OrderData {
   orderId: string;
   orderNumber: string;
   customerEmail: string;
+  /** Shown on admin emails when customer has no email (e.g. phone account). */
+  customerDisplayLabel?: string;
   customerName?: string;
   totalPoints: number;
   itemCount: number;
@@ -116,7 +118,7 @@ export function adminNewOrderEmail(order: OrderData) {
       </tr>
       <tr>
         <td style="padding: 8px 0; border-bottom: 1px solid #f3f4f6;"><strong>Customer:</strong></td>
-        <td style="padding: 8px 0; border-bottom: 1px solid #f3f4f6; text-align: right;">${order.customerEmail}</td>
+        <td style="padding: 8px 0; border-bottom: 1px solid #f3f4f6; text-align: right;">${order.customerDisplayLabel || order.customerEmail}</td>
       </tr>
       <tr>
         <td style="padding: 8px 0; border-bottom: 1px solid #f3f4f6;"><strong>Order Date:</strong></td>
@@ -232,7 +234,7 @@ export function adminOrderStatusEmail(order: OrderStatusData) {
     <table style="width: 100%; border-collapse: collapse;">
       <tr>
         <td style="padding: 8px 0; border-bottom: 1px solid #f3f4f6;"><strong>Customer:</strong></td>
-        <td style="padding: 8px 0; border-bottom: 1px solid #f3f4f6; text-align: right;">${order.customerEmail}</td>
+        <td style="padding: 8px 0; border-bottom: 1px solid #f3f4f6; text-align: right;">${order.customerDisplayLabel || order.customerEmail}</td>
       </tr>
       <tr>
         <td style="padding: 8px 0; border-bottom: 1px solid #f3f4f6;"><strong>New Status:</strong></td>

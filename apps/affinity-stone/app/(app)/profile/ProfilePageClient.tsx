@@ -7,12 +7,14 @@ import { Button } from 'core/components/Button';
 import { Card, CardHeader, CardContent } from 'core/components/Card';
 import { Alert } from 'core/components/Alert';
 import { updateProfile, UpdateProfileResult } from './actions';
+import { formatStoredPhoneForDisplay } from 'core/lib/phone-format';
 
 interface ProfilePageClientProps {
   isDevMode: boolean;
   initialProfile: {
     full_name: string | null;
-    email: string;
+    email: string | null;
+    phone: string | null;
     address_line1: string | null;
     address_line2: string | null;
     city: string | null;
@@ -89,19 +91,37 @@ export default function ProfilePageClient({
             <h2 className="text-lg font-semibold text-gray-900">Personal Information</h2>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
-                Email
-              </label>
-              <Input
-                id="email"
-                type="email"
-                value={initialProfile.email}
-                disabled
-                className="bg-gray-100"
-              />
-              <p className="mt-1 text-xs text-gray-500">Email cannot be changed</p>
-            </div>
+            {initialProfile.email ? (
+              <div>
+                <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+                  Email
+                </label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={initialProfile.email}
+                  disabled
+                  className="bg-gray-100"
+                />
+                <p className="mt-1 text-xs text-gray-500">Email cannot be changed</p>
+              </div>
+            ) : null}
+
+            {initialProfile.phone ? (
+              <div>
+                <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-1">
+                  Phone
+                </label>
+                <Input
+                  id="phone"
+                  type="text"
+                  value={formatStoredPhoneForDisplay(initialProfile.phone)}
+                  disabled
+                  className="bg-gray-100"
+                />
+                <p className="mt-1 text-xs text-gray-500">Phone sign-in only; contact an admin to add an email.</p>
+              </div>
+            ) : null}
 
             <div>
               <Input

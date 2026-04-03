@@ -1,14 +1,32 @@
 'use server';
 
+import { randomBytes } from 'crypto';
 import { requireAdmin } from '@/lib/auth/require-admin';
 import { revalidatePath } from 'next/cache';
 import { sendEmail, getSiteUrl } from '@/lib/email/resend';
+import {
+  normalizeNanpInputToE164,
+  PHONE_LOGIN_DOMAIN,
+  reservedPhoneLoginDomainMessage,
+  syntheticEmailFromE164,
+} from '@/lib/auth/phone';
+import { MUST_CHANGE_PASSWORD_KEY } from '@/lib/auth/must-change-password';
+import { stripPhoneDigits } from 'core/lib/phone-format';
 
 type UserRole = 'user' | 'admin';
 
 export interface UpdateUserProfileResult {
   success: boolean;
   error?: string;
+}
+
+export type CreateUserResult =
+  | { success: true; mode: 'invite' }
+  | { success: true; mode: 'phone'; temporaryPassword: string }
+  | { success: false; error: string };
+
+function generateTemporaryPassword(): string {
+  return `${randomBytes(18).toString('base64url')}aA1`;
 }
 
 function isDevMode() {
@@ -220,30 +238,104 @@ export async function declineAccessRequest(input: {
   return { success: true };
 }
 
-export async function createUser(input: {
-  email: string;
-  fullName?: string;
-  role?: UserRole;
-}): Promise<UpdateUserProfileResult> {
+export async function createUser(
+  input:
+    | { mode?: 'invite'; email: string; fullName?: string; role?: UserRole }
+    | { mode: 'phone'; phoneDigits: string; fullName?: string; role?: UserRole }
+): Promise<CreateUserResult> {
   if (isDevMode()) {
     return { success: false, error: 'User creation requires Supabase to be configured.' };
   }
 
-  if (!input?.email) {
+  const { supabase, user: currentAdmin } = await requireAdmin();
+
+  if (input.mode === 'phone') {
+    const e164 = normalizeNanpInputToE164(stripPhoneDigits(input.phoneDigits));
+    if (!e164) {
+      return {
+        success: false,
+        error: 'Enter a complete US phone number (10 digits, or 11 starting with 1).',
+      };
+    }
+
+    const { data: existingPhone } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('phone', e164)
+      .maybeSingle();
+
+    if (existingPhone) {
+      return { success: false, error: 'A user with this phone number already exists.' };
+    }
+
+    const syntheticEmail = syntheticEmailFromE164(e164);
+    const temporaryPassword = generateTemporaryPassword();
+
+    const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+      email: syntheticEmail,
+      password: temporaryPassword,
+      email_confirm: true,
+      user_metadata: {
+        phone_e164: e164,
+        full_name: input.fullName?.trim() || null,
+        [MUST_CHANGE_PASSWORD_KEY]: true,
+      },
+    });
+
+    if (authError) {
+      console.error('Error creating phone user:', authError);
+      if (authError.message.includes('already registered') || authError.message.includes('already been registered')) {
+        return { success: false, error: 'An account for this phone may already exist.' };
+      }
+      if (authError.message.includes('Database error creating new user')) {
+        return {
+          success: false,
+          error:
+            'Database rejected signup. Apply migration 027_profile_signup_policy_auth_lookup.sql (and ensure 024–026 ran). If it still fails, open Postgres logs and search for ERROR right after a signup attempt.',
+        };
+      }
+      return { success: false, error: authError.message || 'Failed to create user' };
+    }
+
+    if (!authData.user) {
+      return { success: false, error: 'Failed to create user' };
+    }
+
+    if (input.role && input.role !== 'user') {
+      const { error: roleError } = await supabase
+        .from('profiles')
+        .update({ role: input.role })
+        .eq('id', authData.user.id);
+
+      if (roleError) {
+        console.error('Error setting user role:', roleError);
+      }
+    }
+
+    revalidatePath('/admin/users');
+    revalidatePath('/admin');
+
+    return { success: true, mode: 'phone', temporaryPassword };
+  }
+
+  if (!input.email?.trim()) {
     return { success: false, error: 'Email is required' };
+  }
+
+  const trimmedEmail = input.email.trim();
+  if (trimmedEmail.toLowerCase().endsWith(`@${PHONE_LOGIN_DOMAIN}`)) {
+    return { success: false, error: reservedPhoneLoginDomainMessage() };
   }
 
   // Validate email format
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  if (!emailRegex.test(input.email)) {
+  if (!emailRegex.test(trimmedEmail)) {
     return { success: false, error: 'Invalid email address' };
   }
 
-  const { supabase, user: currentAdmin } = await requireAdmin();
-
   // Create the user first (unconfirmed, they'll confirm via the invite link)
   const { data: authData, error: authError } = await supabase.auth.admin.createUser({
-    email: input.email.trim(),
+    email: trimmedEmail,
     email_confirm: false, // Don't confirm - they'll confirm via invite link
     user_metadata: {
       full_name: input.fullName?.trim() || null,
@@ -254,6 +346,13 @@ export async function createUser(input: {
     console.error('Error creating user:', authError);
     if (authError.message.includes('already registered') || authError.message.includes('already been registered')) {
       return { success: false, error: 'A user with this email already exists' };
+    }
+    if (authError.message.includes('Database error creating new user')) {
+      return {
+        success: false,
+        error:
+          'Database rejected signup. Apply migration 027_profile_signup_policy_auth_lookup.sql (and ensure 024–026 ran). Check Postgres logs for the underlying ERROR.',
+      };
     }
     return { success: false, error: authError.message || 'Failed to create user' };
   }
@@ -275,7 +374,7 @@ export async function createUser(input: {
   
   const { data: linkData, error: linkError } = await supabase.auth.admin.generateLink({
     type: 'invite',
-    email: input.email.trim(),
+    email: trimmedEmail,
     options: {
       redirectTo,
     },
@@ -370,7 +469,7 @@ export async function createUser(input: {
 
   // Send invite email via Resend (using verified domain)
   const emailResult = await sendInviteEmail({
-    email: input.email.trim(),
+    email: trimmedEmail,
     fullName: input.fullName?.trim() || null,
     inviteLink,
   });
@@ -395,7 +494,7 @@ export async function createUser(input: {
   }
 
   // Mark any pending access request for this email as approved
-  const trimmedEmail = input.email.trim().toLowerCase();
+  const trimmedEmailLower = trimmedEmail.toLowerCase();
   const { error: requestError } = await supabase
     .from('access_requests')
     .update({
@@ -403,7 +502,7 @@ export async function createUser(input: {
       reviewed_by: currentAdmin.id,
       reviewed_at: new Date().toISOString(),
     })
-    .eq('email', trimmedEmail)
+    .eq('email', trimmedEmailLower)
     .eq('status', 'pending');
 
   if (requestError) {
@@ -414,7 +513,7 @@ export async function createUser(input: {
   revalidatePath('/admin/users');
   revalidatePath('/admin');
 
-  return { success: true };
+  return { success: true, mode: 'invite' };
 }
 
 async function sendInviteEmail(params: {

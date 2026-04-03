@@ -5,7 +5,11 @@ import { useRouter } from 'next/navigation';
 import { Button } from 'core/components/Button';
 import { Input } from 'core/components/Input';
 import { Alert } from 'core/components/Alert';
+import { PhoneInput } from 'core/components/PhoneInput';
+import { isCompleteNanpDigits } from 'core/lib/phone-format';
 import { createUser } from './actions';
+
+type AddMode = 'invite' | 'phone';
 
 interface CreateUserModalProps {
   isOpen: boolean;
@@ -17,18 +21,21 @@ interface CreateUserModalProps {
 
 export function CreateUserModal({ isOpen, onClose, isDevMode, initialEmail, initialFullName }: CreateUserModalProps) {
   const router = useRouter();
+  const [addMode, setAddMode] = useState<AddMode>('invite');
   const [email, setEmail] = useState('');
+  const [phoneDigits, setPhoneDigits] = useState('');
   const [fullName, setFullName] = useState('');
   const [role, setRole] = useState<'user' | 'admin'>('user');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState(false);
+  const [successInvite, setSuccessInvite] = useState(false);
+  const [tempPassword, setTempPassword] = useState<string | null>(null);
 
-  // Update form when initial values change (e.g., when clicking an access request)
   useEffect(() => {
     if (isOpen) {
       if (initialEmail) {
         setEmail(initialEmail);
+        setAddMode('invite');
       }
       if (initialFullName) {
         setFullName(initialFullName);
@@ -36,63 +43,99 @@ export function CreateUserModal({ isOpen, onClose, isDevMode, initialEmail, init
     }
   }, [isOpen, initialEmail, initialFullName]);
 
+  const copyTempPassword = async () => {
+    if (!tempPassword) return;
+    try {
+      await navigator.clipboard.writeText(tempPassword);
+    } catch {
+      /* ignore */
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    setSuccess(false);
+    setSuccessInvite(false);
+    setTempPassword(null);
     setLoading(true);
 
-    const result = await createUser({
-      email: email.trim(),
-      fullName: fullName.trim() || undefined,
-      role,
-    });
+    const result =
+      addMode === 'invite'
+        ? await createUser({
+            mode: 'invite',
+            email: email.trim(),
+            fullName: fullName.trim() || undefined,
+            role,
+          })
+        : await createUser({
+            mode: 'phone',
+            phoneDigits,
+            fullName: fullName.trim() || undefined,
+            role,
+          });
 
     setLoading(false);
 
-    if (result.success) {
-      setSuccess(true);
-      // Reset form
+    if (!result.success) {
+      setError(result.error || 'Failed to create user');
+      return;
+    }
+
+    if (result.mode === 'invite') {
+      setSuccessInvite(true);
       setEmail('');
+      setPhoneDigits('');
       setFullName('');
       setRole('user');
-      // Refresh and close after a brief delay
       setTimeout(() => {
         router.refresh();
         onClose();
-        setSuccess(false);
+        setSuccessInvite(false);
       }, 1500);
     } else {
-      setError(result.error || 'Failed to create user');
+      setTempPassword(result.temporaryPassword);
+      setPhoneDigits('');
+      setFullName('');
+      setRole('user');
+      router.refresh();
     }
   };
 
   const handleClose = () => {
     if (loading) return;
     setEmail('');
+    setPhoneDigits('');
     setFullName('');
     setRole('user');
+    setAddMode('invite');
     setError(null);
-    setSuccess(false);
+    setSuccessInvite(false);
+    setTempPassword(null);
     onClose();
   };
 
-  // Reset form when modal closes
   useEffect(() => {
     if (!isOpen) {
       setEmail('');
+      setPhoneDigits('');
       setFullName('');
       setRole('user');
+      setAddMode('invite');
       setError(null);
-      setSuccess(false);
+      setSuccessInvite(false);
+      setTempPassword(null);
     }
   }, [isOpen]);
 
   if (!isOpen) return null;
 
+  const inviteDisabled = !email.trim() || loading || isDevMode;
+  const phoneDisabled =
+    !isCompleteNanpDigits(phoneDigits) || loading || isDevMode;
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50">
-      <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+      <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6 max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-xl font-bold text-gray-900">
             {initialEmail ? 'Approve Access Request' : 'Add New User'}
@@ -116,7 +159,25 @@ export function CreateUserModal({ isOpen, onClose, isDevMode, initialEmail, init
           </Alert>
         )}
 
-        {success && (
+        {tempPassword && (
+          <Alert variant="success" className="mb-4">
+            <p className="text-sm font-semibold mb-2">User created — share this temporary password securely (out of band)</p>
+            <div className="flex flex-wrap items-center gap-2 mb-2">
+              <code className="text-xs bg-white/80 px-2 py-1 rounded border break-all flex-1 min-w-0">{tempPassword}</code>
+              <Button type="button" variant="outline" className="shrink-0 text-sm" onClick={copyTempPassword}>
+                Copy
+              </Button>
+            </div>
+            <p className="text-xs text-green-900">
+              They should sign in with their phone number and this password. The app will require them to set a new password on first sign-in.
+            </p>
+            <Button type="button" variant="primary" className="w-full mt-3" onClick={handleClose}>
+              Done
+            </Button>
+          </Alert>
+        )}
+
+        {successInvite && (
           <Alert variant="success" className="mb-4">
             <p className="text-sm">
               <strong>User invited successfully!</strong> An invitation email has been sent with a link to set their password.
@@ -130,16 +191,60 @@ export function CreateUserModal({ isOpen, onClose, isDevMode, initialEmail, init
           </Alert>
         )}
 
+        {!tempPassword && (
         <form onSubmit={handleSubmit} className="space-y-4">
-          <Input
-            label="Email Address *"
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="user@example.com"
-            required
-            disabled={loading || isDevMode}
-          />
+          {initialEmail ? null : (
+            <div className="flex rounded-lg border border-gray-200 p-1 bg-gray-50">
+              <button
+                type="button"
+                onClick={() => {
+                  setAddMode('invite');
+                  setError(null);
+                }}
+                className={`flex-1 rounded-md py-2 text-sm font-medium transition-colors ${
+                  addMode === 'invite'
+                    ? 'bg-white text-gray-900 shadow-sm'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                Email invite
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setAddMode('phone');
+                  setError(null);
+                }}
+                className={`flex-1 rounded-md py-2 text-sm font-medium transition-colors ${
+                  addMode === 'phone'
+                    ? 'bg-white text-gray-900 shadow-sm'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                Phone + temp password
+              </button>
+            </div>
+          )}
+
+          {addMode === 'invite' ? (
+            <Input
+              label="Email Address *"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="user@example.com"
+              required
+              disabled={loading || isDevMode || Boolean(initialEmail)}
+            />
+          ) : (
+            <PhoneInput
+              label="Phone (US) *"
+              digits={phoneDigits}
+              onDigitsChange={setPhoneDigits}
+              disabled={loading || isDevMode}
+              required
+            />
+          )}
 
           <Input
             label="Full Name"
@@ -170,7 +275,7 @@ export function CreateUserModal({ isOpen, onClose, isDevMode, initialEmail, init
               type="submit"
               variant="primary"
               className="w-full"
-              disabled={loading || isDevMode || !email.trim()}
+              disabled={addMode === 'invite' ? inviteDisabled : phoneDisabled}
             >
               {loading ? (
                 <span className="flex items-center justify-center gap-2">
@@ -180,8 +285,10 @@ export function CreateUserModal({ isOpen, onClose, isDevMode, initialEmail, init
                   </svg>
                   Creating...
                 </span>
-              ) : (
+              ) : addMode === 'invite' ? (
                 'Create User'
+              ) : (
+                'Create phone user'
               )}
             </Button>
             <Button
@@ -196,10 +303,20 @@ export function CreateUserModal({ isOpen, onClose, isDevMode, initialEmail, init
           </div>
 
           <div className="text-xs text-gray-600 bg-gray-50 rounded-md p-3">
-            <p className="font-semibold mb-1">Note:</p>
-            <p>The new user will receive an invitation email with a link to set their password. The invitation link is valid for 24 hours.</p>
+            {addMode === 'invite' ? (
+              <>
+                <p className="font-semibold mb-1">Note:</p>
+                <p>The new user will receive an invitation email with a link to set their password. The invitation link is valid for 24 hours.</p>
+              </>
+            ) : (
+              <>
+                <p className="font-semibold mb-1">Note:</p>
+                <p>No SMS is sent. Copy the temporary password and share it securely. The user signs in with phone + password and must choose a new password before using the app.</p>
+              </>
+            )}
           </div>
         </form>
+        )}
       </div>
     </div>
   );

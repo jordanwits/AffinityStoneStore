@@ -10,6 +10,7 @@ import { AdminHistoryFilters } from './AdminHistoryFilters';
 import { AdminRecentTransactionsCard } from './AdminRecentTransactionsCard';
 import { FilterDrawer } from 'core/components/FilterDrawer';
 import { FormattedDate } from 'core/components/FormattedDate';
+import { displayProfileContact } from '@/lib/auth/display-contact';
 
 interface AdminPointsPageProps {
   searchParams: Promise<{
@@ -149,7 +150,7 @@ export default async function AdminPointsPage({ searchParams }: AdminPointsPageP
     // Build paginated transactions query
     let transactionsQuery = supabase
       .from('points_ledger')
-      .select('id, delta_points, reason, order_id, created_at, profiles!points_ledger_user_id_fkey(email)');
+      .select('id, delta_points, reason, order_id, created_at, profiles!points_ledger_user_id_fkey(email, phone)');
     transactionsQuery = buildFilteredQuery(transactionsQuery);
     
     transactionsQuery = transactionsQuery
@@ -404,7 +405,10 @@ export default async function AdminPointsPage({ searchParams }: AdminPointsPageP
                               </p>
                               <div className="flex flex-col sm:flex-row sm:items-center sm:gap-2 mt-0.5 gap-0.5">
                                 <p className="text-sm text-gray-500 truncate">
-                                  {entry.profiles?.email || 'Unknown user'}
+                                  {(() => {
+                                  const c = displayProfileContact(entry.profiles?.email, entry.profiles?.phone);
+                                  return c === '—' ? 'Unknown user' : c;
+                                })()}
                                 </p>
                                 <p className="text-sm text-gray-500">
                                   <FormattedDate date={entry.created_at} format="datetimeShort" />

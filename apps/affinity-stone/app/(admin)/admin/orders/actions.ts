@@ -4,6 +4,7 @@ import { requireAdmin } from '@/lib/auth/require-admin';
 import { revalidatePath } from 'next/cache';
 import { sendEmail, getAdminEmails } from '@/lib/email/resend';
 import { customerOrderStatusEmail, adminOrderStatusEmail } from '@/lib/email/templates';
+import { displayProfileContact } from '@/lib/auth/display-contact';
 
 const VALID_STATUSES = ['new', 'processing', 'shipped', 'delivered', 'cancelled'] as const;
 type OrderStatus = typeof VALID_STATUSES[number];
@@ -68,16 +69,21 @@ export async function updateOrderStatus(data: UpdateOrderStatusData) {
     // Get order details with user email
     const { data: orderDetails } = await supabase
       .from('orders')
-      .select('*, profiles(email)')
+      .select('*, profiles(email, phone)')
       .eq('id', data.orderId)
       .single();
-    
-    if (orderDetails && (orderDetails as any).profiles?.email) {
+
+    const prof = (orderDetails as any)?.profiles;
+    const customerEmail = prof?.email?.trim() || '';
+    const customerDisplayLabel = displayProfileContact(prof?.email, prof?.phone);
+
+    if (orderDetails && (customerEmail || customerDisplayLabel !== '—')) {
       const orderNumber = data.orderId.slice(0, 8).toUpperCase();
       const emailData = {
         orderId: data.orderId,
         orderNumber,
-        customerEmail: (orderDetails as any).profiles.email,
+        customerEmail: customerEmail || '',
+        customerDisplayLabel: customerDisplayLabel !== '—' ? customerDisplayLabel : customerEmail,
         totalPoints: orderDetails.total_points,
         itemCount: 0, // Not critical for status update
         deliveryMethod: orderDetails.delivery_method,
@@ -85,14 +91,14 @@ export async function updateOrderStatus(data: UpdateOrderStatusData) {
         status: data.status,
         trackingNumber: data.trackingNumber,
       };
-      
-      // Send customer notification (don't wait)
-      sendEmail({
-        to: (orderDetails as any).profiles.email,
-        ...customerOrderStatusEmail(emailData),
-      }).catch(err => console.error('Failed to send customer status email:', err));
-      
-      // Send admin notification (don't wait)
+
+      if (customerEmail) {
+        sendEmail({
+          to: customerEmail,
+          ...customerOrderStatusEmail(emailData),
+        }).catch(err => console.error('Failed to send customer status email:', err));
+      }
+
       const adminEmails = getAdminEmails();
       if (adminEmails.length > 0) {
         sendEmail({

@@ -4,6 +4,7 @@ import { usePathname } from 'next/navigation';
 import { useState, useEffect, useMemo } from 'react';
 import { BrandMark } from 'core/components/BrandMark';
 import { createClient } from '@/lib/supabase/client';
+import { displayProfileContact } from '@/lib/auth/display-contact';
 
 interface AdminLayoutClientProps {
   children: React.ReactNode;
@@ -33,7 +34,21 @@ export function AdminLayoutClient({ children, isDevMode }: AdminLayoutClientProp
       } = await supabase.auth.getUser();
 
       if (cancelled) return;
-      setEmail(user?.email || '');
+      if (!user) {
+        setEmail('');
+        setLoaded(true);
+        return;
+      }
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('email, phone')
+        .eq('id', user.id)
+        .single();
+
+      if (cancelled) return;
+      const contact = displayProfileContact(profile?.email, profile?.phone);
+      setEmail(contact !== '—' ? contact : user.email || '');
       setLoaded(true);
     }
 

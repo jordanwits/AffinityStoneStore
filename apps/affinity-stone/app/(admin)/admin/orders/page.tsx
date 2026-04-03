@@ -7,6 +7,7 @@ import { OrderListActions } from './OrderListActions';
 import { OrderActionsCell } from './OrderActionsCell';
 import { FormattedDate } from 'core/components/FormattedDate';
 import Link from 'next/link';
+import { displayProfileContact } from '@/lib/auth/display-contact';
 
 const ITEMS_PER_PAGE = 50;
 
@@ -52,7 +53,7 @@ export default async function AdminOrdersPage({ searchParams }: AdminOrdersPageP
       (() => {
         let q = supabase
           .from('orders')
-          .select('*, profiles(email)')
+          .select('*, profiles(email, phone)')
           .order('created_at', { ascending: false })
           .range((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE - 1);
         if (dateFilter) q = q.gte('created_at', dateFilter);
@@ -168,7 +169,9 @@ export default async function AdminOrdersPage({ searchParams }: AdminOrdersPageP
                           {order.status}
                         </span>
                       </div>
-                      <p className="text-sm text-gray-900 truncate">{order.profiles?.email || 'N/A'}</p>
+                      <p className="text-sm text-gray-900 truncate">
+                        {displayProfileContact(order.profiles?.email, order.profiles?.phone)}
+                      </p>
                       <div className="flex flex-wrap gap-x-2 gap-y-1 mt-2 text-sm text-gray-600">
                         <span
                           className={`px-2 py-0.5 rounded text-xs font-medium ${
@@ -235,7 +238,9 @@ export default async function AdminOrdersPage({ searchParams }: AdminOrdersPageP
                           {order.id.slice(0, 8)}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-sm text-gray-900">{order.profiles?.email || 'N/A'}</td>
+                      <td className="px-4 py-3 text-sm text-gray-900">
+                        {displayProfileContact(order.profiles?.email, order.profiles?.phone)}
+                      </td>
                       <td className="px-4 py-3 text-sm">
                         <span
                           className={`px-2 py-1 rounded-full text-xs font-medium ${

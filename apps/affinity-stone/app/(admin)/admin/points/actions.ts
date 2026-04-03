@@ -4,6 +4,7 @@ import { requireAdmin } from '@/lib/auth/require-admin';
 import { revalidatePath } from 'next/cache';
 import { sendEmail } from '@/lib/email/resend';
 import { pointsAdjustmentNotificationEmail } from '@/lib/email/templates';
+import { displayProfileContact } from '@/lib/auth/display-contact';
 
 export async function adjustUserPoints(
   userId: string,
@@ -25,7 +26,7 @@ export async function adjustUserPoints(
   // Verify user exists
   const { data: targetUser, error: userError } = await supabase
     .from('profiles')
-    .select('id, email, full_name')
+    .select('id, email, phone, full_name')
     .eq('id', userId)
     .single();
   
@@ -74,7 +75,8 @@ export async function adjustUserPoints(
   revalidatePath('/dashboard');
   revalidatePath('/points-history');
   
-  const baseMessage = `Successfully ${deltaPoints > 0 ? 'added' : 'deducted'} ${Math.abs(deltaPoints)} points ${deltaPoints > 0 ? 'to' : 'from'} ${targetUser.email}`;
+  const contactLabel = displayProfileContact(targetUser.email, targetUser.phone);
+  const baseMessage = `Successfully ${deltaPoints > 0 ? 'added' : 'deducted'} ${Math.abs(deltaPoints)} points ${deltaPoints > 0 ? 'to' : 'from'} ${contactLabel}`;
   const message = notifyUser ? `${baseMessage} and notified user by email.` : baseMessage;
 
   return { success: true, message };
@@ -87,9 +89,9 @@ export async function getUsers() {
   // Using service role client, so RLS is bypassed
   const { data: users, error } = await supabase
     .from('profiles')
-    .select('id, email, full_name, active, role')
+    .select('id, email, phone, full_name, active, role')
     .eq('active', true)
-    .order('email');
+    .order('full_name', { ascending: true });
   
   if (error) {
     console.error('Error fetching users:', error);

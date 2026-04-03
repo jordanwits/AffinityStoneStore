@@ -8,10 +8,13 @@ import { Input } from 'core/components/Input';
 import { Alert } from 'core/components/Alert';
 import { setUserActive, updateUserProfile, deleteUser } from './actions';
 import { FormattedDate } from 'core/components/FormattedDate';
+import { displayProfileContact } from '@/lib/auth/display-contact';
+import { stripPhoneDigits } from 'core/lib/phone-format';
 
 type UserRow = {
   id: string;
-  email: string;
+  email: string | null;
+  phone: string | null;
   full_name: string | null;
   role: 'user' | 'admin';
   active: boolean;
@@ -170,11 +173,17 @@ export function UsersTableClient({
     let filtered = users;
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
-      filtered = users.filter(
-        (u) =>
-          u.email.toLowerCase().includes(query) ||
-          u.full_name?.toLowerCase().includes(query)
-      );
+      const qDigits = stripPhoneDigits(searchQuery);
+      filtered = users.filter((u) => {
+        const contact = displayProfileContact(u.email, u.phone).toLowerCase();
+        const phoneDigits = stripPhoneDigits(u.phone || '');
+        return (
+          (u.email?.toLowerCase().includes(query) ?? false) ||
+          contact.includes(query) ||
+          (qDigits.length > 0 && phoneDigits.includes(qDigits)) ||
+          (u.full_name?.toLowerCase().includes(query) ?? false)
+        );
+      });
     }
 
     // Keep consistent ordering; show current admin at top for clarity
@@ -235,7 +244,7 @@ export function UsersTableClient({
     if (!u.active) {
       // activating is safe
     } else {
-      const ok = confirm(`Deactivate ${u.email}? They will not be able to log in.`);
+      const ok = confirm(`Deactivate ${displayProfileContact(u.email, u.phone)}? They will not be able to log in.`);
       if (!ok) return;
     }
 
@@ -259,7 +268,7 @@ export function UsersTableClient({
     setMessage(null);
 
     const ok = confirm(
-      `Are you sure you want to permanently delete ${u.email}?\n\nThis action cannot be undone. All user data will be removed.`
+      `Are you sure you want to permanently delete ${displayProfileContact(u.email, u.phone)}?\n\nThis action cannot be undone. All user data will be removed.`
     );
     if (!ok) return;
 
@@ -296,7 +305,7 @@ export function UsersTableClient({
         <div className="w-full sm:w-96">
           <Input
             type="search"
-            placeholder="Search by email or name..."
+            placeholder="Search by email, phone, or name..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full"
@@ -482,7 +491,7 @@ export function UsersTableClient({
                   <tr key={u.id} className="hover:bg-gray-50">
                     <td className="px-4 py-3 text-sm font-medium text-gray-900">
                       <div className="flex items-center gap-2">
-                        <span>{u.email}</span>
+                        <span>{displayProfileContact(u.email, u.phone)}</span>
                         {isSelf && (
                           <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-900">
                             You

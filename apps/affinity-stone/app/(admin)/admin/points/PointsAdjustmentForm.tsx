@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { Button } from 'core/components/Button';
 import { Input } from 'core/components/Input';
 import { adjustUserPoints, getUsers } from './actions';
+import { displayProfileContact } from '@/lib/auth/display-contact';
 
 interface PointsAdjustmentFormProps {
   isDevMode: boolean;
@@ -11,7 +12,8 @@ interface PointsAdjustmentFormProps {
 
 interface User {
   id: string;
-  email: string;
+  email: string | null;
+  phone: string | null;
   full_name: string | null;
   active: boolean;
   role: string;
@@ -111,7 +113,7 @@ export default function PointsAdjustmentForm({ isDevMode }: PointsAdjustmentForm
             </option>
             {users.map((user) => (
               <option key={user.id} value={user.id}>
-                {user.email}
+                {displayProfileContact(user.email, user.phone)}
                 {user.full_name ? ` - ${user.full_name}` : ''}
                 {user.role === 'admin' ? ' [Admin]' : ''}
               </option>
