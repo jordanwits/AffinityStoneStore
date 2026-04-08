@@ -283,8 +283,8 @@ export default function CartPageClient({ isDevMode }: CartPageClientProps) {
                   <span className="font-medium text-gray-900">{totalPoints.toLocaleString()} pts</span>
                 </div>
                 <div className="flex justify-between text-base">
-                  <span className="text-gray-600">Shipping</span>
-                  <span className="font-medium text-green-600">FREE</span>
+                  <span className="text-gray-600">Pickup</span>
+                  <span className="font-medium text-green-600">No fee</span>
                 </div>
               </div>
               

@@ -108,28 +108,6 @@ export async function placeOrder(formData: FormData): Promise<PlaceOrderResult> 
       return { success: false, error: 'Cart is empty or contains only invalid items' };
     }
 
-    // Get delivery method
-    const deliveryMethod = formData.get('deliveryMethod') as string;
-    if (!deliveryMethod || !['pickup', 'delivery'].includes(deliveryMethod)) {
-      return { success: false, error: 'Please select a delivery method' };
-    }
-
-    // Get shipping info (only required for delivery)
-    const shipName = formData.get('shipName') as string;
-    const shipAddressLine1 = formData.get('shipAddressLine1') as string;
-    const shipAddressLine2 = (formData.get('shipAddressLine2') as string) || null;
-    const shipCity = formData.get('shipCity') as string;
-    const shipState = formData.get('shipState') as string;
-    const shipZip = formData.get('shipZip') as string;
-    const shipCountry = formData.get('shipCountry') as string;
-
-    // Validate shipping fields only for delivery orders
-    if (deliveryMethod === 'delivery') {
-      if (!shipName || !shipAddressLine1 || !shipCity || !shipState || !shipZip || !shipCountry) {
-        return { success: false, error: 'All shipping fields are required for delivery orders' };
-      }
-    }
-
     // Prepare items for RPC call
     const items = Array.from(normalizedItems.values()).map((item) => ({
       product_id: item.productId,
@@ -140,14 +118,14 @@ export async function placeOrder(formData: FormData): Promise<PlaceOrderResult> 
     // Call the transactional RPC to place the order
     const { data: orderId, error: rpcError } = await supabase.rpc('place_points_order', {
       p_items: items,
-      p_delivery_method: deliveryMethod,
-      p_ship_name: deliveryMethod === 'delivery' ? shipName : null,
-      p_ship_address_line1: deliveryMethod === 'delivery' ? shipAddressLine1 : null,
-      p_ship_address_line2: deliveryMethod === 'delivery' ? shipAddressLine2 : null,
-      p_ship_city: deliveryMethod === 'delivery' ? shipCity : null,
-      p_ship_state: deliveryMethod === 'delivery' ? shipState : null,
-      p_ship_zip: deliveryMethod === 'delivery' ? shipZip : null,
-      p_ship_country: deliveryMethod === 'delivery' ? shipCountry : null,
+      p_delivery_method: 'pickup',
+      p_ship_name: null,
+      p_ship_address_line1: null,
+      p_ship_address_line2: null,
+      p_ship_city: null,
+      p_ship_state: null,
+      p_ship_zip: null,
+      p_ship_country: null,
     });
 
     if (rpcError) {
@@ -180,7 +158,7 @@ export async function placeOrder(formData: FormData): Promise<PlaceOrderResult> 
       // Get order details for email
       const { data: orderDetails } = await supabase
         .from('orders')
-        .select('id, total_points, delivery_method, created_at')
+        .select('id, total_points, created_at')
         .eq('id', orderId)
         .single();
       
@@ -201,7 +179,6 @@ export async function placeOrder(formData: FormData): Promise<PlaceOrderResult> 
           customerDisplayLabel: customerLabel !== '—' ? customerLabel : profileEmail || user.email || '',
           totalPoints: orderDetails.total_points,
           itemCount: items.reduce((sum, item) => sum + item.quantity, 0),
-          deliveryMethod: orderDetails.delivery_method,
           createdAt: orderDetails.created_at,
         };
 

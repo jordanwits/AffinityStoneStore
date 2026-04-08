@@ -136,10 +136,10 @@ export default function ProfilePageClient({
           </CardContent>
         </Card>
 
-        {/* Shipping Address */}
+        {/* Address on file */}
         <Card>
           <CardHeader>
-            <h2 className="text-lg font-semibold text-gray-900">Default Shipping Address</h2>
+            <h2 className="text-lg font-semibold text-gray-900">Mailing address</h2>
           </CardHeader>
           <CardContent className="space-y-4">
             <div>

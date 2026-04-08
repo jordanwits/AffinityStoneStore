@@ -26,13 +26,52 @@ interface SearchParams {
   sort?: 'featured' | 'newest' | 'priceAsc' | 'priceDesc' | 'nameAsc';
 }
 
+type ProductRow = {
+  collections?: string[] | null;
+  base_usd: number;
+  name: string;
+  created_at?: string | null;
+};
+
+function isNewArrivalsProduct(p: { collections?: string[] | null }): boolean {
+  return Array.isArray(p.collections) && p.collections.includes('New Arrivals');
+}
+
+/** When no collection filters are active: New Arrivals ("Just In") first, then the selected sort order. */
+function compareProductsJustInFirst(
+  a: ProductRow,
+  b: ProductRow,
+  sort: SearchParams['sort'] | undefined
+): number {
+  const rank = (p: ProductRow) => (isNewArrivalsProduct(p) ? 0 : 1);
+  const primary = rank(a) - rank(b);
+  if (primary !== 0) return primary;
+
+  if (sort === 'priceAsc') return a.base_usd - b.base_usd;
+  if (sort === 'priceDesc') return b.base_usd - a.base_usd;
+  if (sort === 'nameAsc') return a.name.localeCompare(b.name);
+  if (sort === 'newest') {
+    const ta = a.created_at ? new Date(a.created_at).getTime() : 0;
+    const tb = b.created_at ? new Date(b.created_at).getTime() : 0;
+    return tb - ta;
+  }
+  return a.name.localeCompare(b.name);
+}
+
 export default async function DashboardPage({
   searchParams,
 }: {
   searchParams: Promise<SearchParams>;
 }) {
   const params = await searchParams;
-  
+
+  const collectionsFilterList = params.collections
+    ? Array.isArray(params.collections)
+      ? params.collections
+      : [params.collections]
+    : [];
+  const hasCollectionFilter = collectionsFilterList.length > 0;
+
   // Check if using placeholder Supabase (dev mode)
   const isDevMode = !process.env.NEXT_PUBLIC_SUPABASE_URL || 
                     process.env.NEXT_PUBLIC_SUPABASE_URL.includes('placeholder');
@@ -88,7 +127,7 @@ export default async function DashboardPage({
         images: ['/b43457a0-76b6-11f0-9faf-5258f188704a.png'],
         active: true,
         category: 'Electronics',
-        collections: ['Premium', 'Electronics'],
+        collections: ['Premium', 'Electronics', 'Custom Order'],
       },
       {
         id: '5',
@@ -167,15 +206,18 @@ export default async function DashboardPage({
     });
     
     // Apply sorting
-    if (params.sort === 'priceAsc') {
-      products.sort((a, b) => a.base_usd - b.base_usd);
-    } else if (params.sort === 'priceDesc') {
-      products.sort((a, b) => b.base_usd - a.base_usd);
-    } else if (params.sort === 'nameAsc') {
-      products.sort((a, b) => a.name.localeCompare(b.name));
-    } else if (params.sort === 'newest') {
-      // Mock newest by reversing
-      products.reverse();
+    if (hasCollectionFilter) {
+      if (params.sort === 'priceAsc') {
+        products.sort((a, b) => a.base_usd - b.base_usd);
+      } else if (params.sort === 'priceDesc') {
+        products.sort((a, b) => b.base_usd - a.base_usd);
+      } else if (params.sort === 'nameAsc') {
+        products.sort((a, b) => a.name.localeCompare(b.name));
+      } else if (params.sort === 'newest') {
+        products.reverse();
+      }
+    } else {
+      products.sort((a, b) => compareProductsJustInFirst(a, b, params.sort));
     }
     
     // Extract filter options
@@ -298,6 +340,10 @@ export default async function DashboardPage({
     }
 
     products = filteredProducts;
+
+    if (!hasCollectionFilter) {
+      products.sort((a, b) => compareProductsJustInFirst(a, b, params.sort));
+    }
     
     // Filter metadata already loaded in parallel at the start
   }
@@ -448,7 +494,10 @@ export default async function DashboardPage({
             {products.map((product) => {
               const pointsPrice = Math.round(product.base_usd * conversionRate);
               const isNew = product.collections?.includes('New Arrivals');
-              
+              const isCustomOrder = product.collections?.includes('Custom Order');
+              const collectionBadgeClass =
+                'inline-block px-2 py-1 text-xs font-bold text-secondary-foreground bg-secondary rounded uppercase tracking-wide';
+
               return (
                 <Link key={product.id} href={`/product/${product.id}`} className="group">
                   <div className="relative border-2 border-transparent hover:border-secondary/40 rounded-lg p-2 transition-all duration-200">
@@ -472,9 +521,11 @@ export default async function DashboardPage({
                     
                     {/* Product Info */}
                     <div className="space-y-2">
-                      {/* Just In Badge */}
-                      {isNew && (
-                        <span className="inline-block px-2 py-1 text-xs font-bold text-secondary-foreground bg-secondary rounded uppercase tracking-wide">Just In</span>
+                      {(isNew || isCustomOrder) && (
+                        <div className="flex flex-wrap gap-1.5">
+                          {isNew && <span className={collectionBadgeClass}>Just In</span>}
+                          {isCustomOrder && <span className={collectionBadgeClass}>Custom Order</span>}
+                        </div>
                       )}
                       
                       {/* Product Name */}

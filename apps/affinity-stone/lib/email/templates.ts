@@ -10,7 +10,6 @@ interface OrderData {
   customerName?: string;
   totalPoints: number;
   itemCount: number;
-  deliveryMethod: string;
   createdAt: string;
 }
 
@@ -59,8 +58,8 @@ export function customerOrderConfirmationEmail(order: OrderData) {
         <td style="padding: 8px 0; border-bottom: 1px solid #f3f4f6; text-align: right;">${order.itemCount}</td>
       </tr>
       <tr>
-        <td style="padding: 8px 0;"><strong>Delivery Method:</strong></td>
-        <td style="padding: 8px 0; text-align: right;">${order.deliveryMethod === 'pickup' ? 'Pickup' : 'Delivery'}</td>
+        <td style="padding: 8px 0;"><strong>Fulfillment:</strong></td>
+        <td style="padding: 8px 0; text-align: right;">Store pickup</td>
       </tr>
     </table>
   </div>
@@ -71,9 +70,7 @@ export function customerOrderConfirmationEmail(order: OrderData) {
   
   <div style="background-color: #f8f9fa; border-radius: 8px; padding: 20px; margin-top: 20px;">
     <p style="margin: 0; font-size: 14px; color: #666;">
-      ${order.deliveryMethod === 'pickup' 
-        ? 'You will be notified when your order is ready for pickup.' 
-        : 'You will receive shipping updates as your order is processed.'}
+      You will be notified when your order is ready for pickup.
     </p>
   </div>
   
@@ -133,8 +130,8 @@ export function adminNewOrderEmail(order: OrderData) {
         <td style="padding: 8px 0; border-bottom: 1px solid #f3f4f6; text-align: right;">${order.itemCount}</td>
       </tr>
       <tr>
-        <td style="padding: 8px 0;"><strong>Delivery Method:</strong></td>
-        <td style="padding: 8px 0; text-align: right; text-transform: capitalize;">${order.deliveryMethod}</td>
+        <td style="padding: 8px 0;"><strong>Fulfillment:</strong></td>
+        <td style="padding: 8px 0; text-align: right;">Store pickup</td>
       </tr>
     </table>
   </div>
@@ -157,11 +154,11 @@ export function customerOrderStatusEmail(order: OrderStatusData) {
   const subject = `Order ${statusText} - #${order.orderNumber}`;
   
   const statusMessages: Record<string, string> = {
-    processing: 'Your order is now being processed and prepared for shipment.',
-    shipped: order.trackingNumber 
-      ? `Your order has been shipped! Tracking number: ${order.trackingNumber}`
-      : 'Your order has been shipped and is on its way to you.',
-    delivered: 'Your order has been delivered. We hope you enjoy your items!',
+    processing: 'Your order is being processed and prepared for pickup.',
+    shipped: order.trackingNumber
+      ? `Your order is ready for pickup. Reference: ${order.trackingNumber}`
+      : 'Your order is ready for pickup at our location.',
+    delivered: 'Your pickup is complete. We hope you enjoy your items!',
     cancelled: 'Your order has been cancelled. If you have questions, please contact support.',
   };
   
@@ -184,11 +181,11 @@ export function customerOrderStatusEmail(order: OrderStatusData) {
     <p style="margin: 0; color: #666;">${statusMessages[order.status] || 'Your order status has been updated.'}</p>
     ${order.trackingNumber ? `
       <div style="margin-top: 15px; padding: 15px; background-color: #f3f4f6; border-radius: 6px;">
-        <p style="margin: 0 0 5px 0; font-size: 14px; color: #666;">Tracking Number:</p>
+        <p style="margin: 0 0 5px 0; font-size: 14px; color: #666;">Reference:</p>
         <p style="margin: 0;">
           <a href="${getTrackingUrl(order.trackingNumber)}" style="font-family: monospace; font-size: 16px; font-weight: bold; color: #2563eb; text-decoration: underline;">${order.trackingNumber}</a>
         </p>
-        <p style="margin: 5px 0 0 0; font-size: 12px; color: #666;">Click the tracking number to track your package</p>
+        <p style="margin: 5px 0 0 0; font-size: 12px; color: #666;">Opens carrier or reference link when applicable</p>
       </div>
     ` : ''}
   </div>
@@ -242,7 +239,7 @@ export function adminOrderStatusEmail(order: OrderStatusData) {
       </tr>
       ${order.trackingNumber ? `
       <tr>
-        <td style="padding: 8px 0;"><strong>Tracking:</strong></td>
+        <td style="padding: 8px 0;"><strong>Reference:</strong></td>
         <td style="padding: 8px 0; text-align: right;">
           <a href="${getTrackingUrl(order.trackingNumber)}" style="font-family: monospace; color: #2563eb; text-decoration: underline;">${order.trackingNumber}</a>
         </td>

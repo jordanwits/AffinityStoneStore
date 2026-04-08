@@ -17,8 +17,8 @@ interface OrderStatusEditorProps {
 const STATUS_OPTIONS = [
   { value: 'new', label: 'New', color: 'yellow' },
   { value: 'processing', label: 'Processing', color: 'blue' },
-  { value: 'shipped', label: 'Shipped', color: 'purple' },
-  { value: 'delivered', label: 'Delivered', color: 'green' },
+  { value: 'shipped', label: 'Ready for pickup', color: 'purple' },
+  { value: 'delivered', label: 'Picked up', color: 'green' },
   { value: 'cancelled', label: 'Cancelled', color: 'red' },
 ];
 
@@ -107,12 +107,12 @@ export function OrderStatusEditor({
         </div>
 
         <Input
-          label="Tracking Number (Optional)"
+          label="Reference / carrier # (optional)"
           type="text"
           value={trackingNumber}
           onChange={(e) => setTrackingNumber(e.target.value)}
           disabled={loading}
-          placeholder="e.g., 1Z999AA10123456784"
+          placeholder="Optional reference for the customer"
         />
 
         <div>

@@ -41,7 +41,7 @@ export default async function ProfilePage() {
     <div className="pb-8">
       <PageHeader 
         title="My Profile" 
-        subtitle="Manage your personal information and shipping address"
+        subtitle="Manage your personal information and mailing address"
       />
       <ProfilePageClient 
         isDevMode={isDevMode}
