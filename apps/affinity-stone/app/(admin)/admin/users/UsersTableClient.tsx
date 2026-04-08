@@ -20,6 +20,8 @@ type UserRow = {
   active: boolean;
   created_at: string;
   points_balance: number;
+  points_universal?: number;
+  points_restricted?: number;
 };
 
 function UserRowActions({
@@ -409,6 +411,13 @@ export function UsersTableClient({
                     <span className="text-gray-900 font-semibold">
                       {isDevMode ? '-' : u.points_balance.toLocaleString()}
                     </span>
+                    {!isDevMode &&
+                      (u.points_universal !== undefined || u.points_restricted !== undefined) && (
+                        <p className="text-xs text-gray-500 mt-1">
+                          Universal {(u.points_universal ?? 0).toLocaleString()} · Affinity points{' '}
+                          {(u.points_restricted ?? 0).toLocaleString()}
+                        </p>
+                      )}
                   </div>
                   <p className="text-gray-500 text-xs">
                     Created <FormattedDate date={u.created_at} format="date" />
@@ -543,7 +552,15 @@ export function UsersTableClient({
                       {isDevMode ? (
                         <span className="text-gray-400">-</span>
                       ) : (
-                        <span className="font-semibold">{u.points_balance.toLocaleString()}</span>
+                        <div>
+                          <span className="font-semibold">{u.points_balance.toLocaleString()}</span>
+                          {(u.points_universal !== undefined || u.points_restricted !== undefined) && (
+                            <p className="text-xs text-gray-500 font-normal mt-0.5">
+                              Universal {(u.points_universal ?? 0).toLocaleString()} · Affinity points{' '}
+                              {(u.points_restricted ?? 0).toLocaleString()}
+                            </p>
+                          )}
+                        </div>
                       )}
                     </td>
 

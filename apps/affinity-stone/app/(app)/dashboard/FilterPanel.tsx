@@ -1,8 +1,9 @@
 'use client';
 
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useTransition, useState, useEffect } from 'react';
+import { useTransition, useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
+import { filterStorefrontCollectionOptions } from '@/lib/storefront-collection-filters';
 
 interface FilterPanelProps {
   allCategories: string[];
@@ -35,9 +36,14 @@ export function FilterPanel({
   };
 
   // Optimistic UI state - tracks what the user has clicked before server responds
+  const storefrontCollections = useMemo(
+    () => filterStorefrontCollectionOptions(allCollections),
+    [allCollections]
+  );
+
   const [optimisticState, setOptimisticState] = useState({
     category: params.category,
-    collections: params.collections,
+    collections: filterStorefrontCollectionOptions(params.collections),
     size: params.size,
     color: params.color,
   });
@@ -46,7 +52,7 @@ export function FilterPanel({
   useEffect(() => {
     setOptimisticState({
       category: params.category,
-      collections: params.collections,
+      collections: filterStorefrontCollectionOptions(params.collections),
       size: params.size,
       color: params.color,
     });
@@ -64,7 +70,9 @@ export function FilterPanel({
     
     // Handle array params
     if (params.collections.length > 0 && !('collections' in updates)) {
-      params.collections.forEach(c => newParams.append('collections', c));
+      filterStorefrontCollectionOptions(params.collections).forEach((c) =>
+        newParams.append('collections', c)
+      );
     }
     if (params.size.length > 0 && !('size' in updates)) {
       params.size.forEach(s => newParams.append('size', s));
@@ -151,11 +159,11 @@ export function FilterPanel({
         )}
 
         {/* Collections Filter */}
-        {allCollections.length > 0 && (
+        {storefrontCollections.length > 0 && (
           <div className="border-b pb-3">
             <h3 className="text-sm font-bold text-gray-900 mb-2">Collections</h3>
             <div className="space-y-2">
-              {allCollections.map(col => {
+              {storefrontCollections.map(col => {
                 const isSelected = optimisticState.collections.includes(col);
                 
                 let newCollections: string[] | undefined;

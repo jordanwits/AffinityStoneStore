@@ -4,7 +4,6 @@ import { useState, useEffect, useCallback } from 'react';
 import { Card, CardHeader, CardContent } from 'core/components/Card';
 import { PageHeader } from 'core/components/PageHeader';
 import { Alert } from 'core/components/Alert';
-import { Badge } from 'core/components/Badge';
 import { Skeleton } from 'core/components/Skeleton';
 import { BackButton } from 'core/components/BackButton';
 import { Button } from 'core/components/Button';
@@ -14,19 +13,19 @@ import { getCart, clearCart } from '@/lib/cart/storage';
 import type { CartItemWithDetails } from '@/lib/cart/types';
 import Image from 'next/image';
 import { getCheckoutData } from './actions';
+import { allocateCheckoutSpend, isAffinityProduct } from '@/lib/points/buckets';
 
 interface CheckoutPageClientProps {
   isDevMode: boolean;
   placeOrder: (formData: FormData) => Promise<{ success: boolean; orderId?: string; error?: string }>;
 }
 
-// Mock data for dev mode
 const mockProducts = [
-  { id: '1', name: 'Company Logo T-Shirt', base_usd: 25.00, images: ['/ChrisCrossBlackCottonT-Shirt.webp'] },
-  { id: '2', name: 'Insulated Water Bottle', base_usd: 35.00, images: ['/KiyoUVC-Bottle_Studio_Fullsize-500ml_Black_C2_4480x.jpg'] },
-  { id: '3', name: 'Laptop Backpack', base_usd: 75.00, images: ['/1200W-18684-Black-0-NKDH7709BlackBagFront3.jpg'] },
-  { id: '4', name: 'Wireless Mouse', base_usd: 45.00, images: ['/b43457a0-76b6-11f0-9faf-5258f188704a.png'] },
-  { id: '5', name: 'Notebook Set', base_usd: 20.00, images: ['/moleskine-classic-hardcover-notebook-black.webp'] },
+  { id: '1', name: 'Company Logo T-Shirt', base_usd: 25.0, images: ['/ChrisCrossBlackCottonT-Shirt.webp'], collections: ['Affinity', 'Essentials'] },
+  { id: '2', name: 'Insulated Water Bottle', base_usd: 35.0, images: ['/KiyoUVC-Bottle_Studio_Fullsize-500ml_Black_C2_4480x.jpg'], collections: [] },
+  { id: '3', name: 'Laptop Backpack', base_usd: 75.0, images: ['/1200W-18684-Black-0-NKDH7709BlackBagFront3.jpg'], collections: [] },
+  { id: '4', name: 'Wireless Mouse', base_usd: 45.0, images: ['/b43457a0-76b6-11f0-9faf-5258f188704a.png'], collections: [] },
+  { id: '5', name: 'Notebook Set', base_usd: 20.0, images: ['/moleskine-classic-hardcover-notebook-black.webp'], collections: [] },
 ];
 
 export default function CheckoutPageClient({
@@ -36,6 +35,8 @@ export default function CheckoutPageClient({
   const router = useRouter();
   const [cartItems, setCartItems] = useState<CartItemWithDetails[]>([]);
   const [pointsBalance, setPointsBalance] = useState(0);
+  const [universalBalance, setUniversalBalance] = useState(0);
+  const [restrictedBalance, setRestrictedBalance] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -51,7 +52,9 @@ export default function CheckoutPageClient({
     let products: any[] = [];
     let variants: any[] = [];
     let conversionRate = 100;
-    let balance = 2500; // Default for dev mode
+    let balance = 2500;
+    let universal = 2000;
+    let restricted = 500;
 
     if (isDevMode) {
       products = mockProducts;
@@ -61,9 +64,13 @@ export default function CheckoutPageClient({
       variants = data.variants;
       conversionRate = data.conversionRate;
       balance = data.pointsBalance;
+      universal = data.universalBalance;
+      restricted = data.restrictedBalance;
     }
 
     setPointsBalance(balance);
+    setUniversalBalance(universal);
+    setRestrictedBalance(restricted);
 
     const enriched: CartItemWithDetails[] = cart.items.map((item) => {
       const product = products.find((p) => p.id === item.productId);
@@ -72,28 +79,31 @@ export default function CheckoutPageClient({
         : undefined;
 
       if (!product) {
-        return {
-          ...item,
-          productName: 'Unknown Product',
-          pointsPerItem: 0,
-          totalPoints: 0,
-        };
-      }
-
-      const basePoints = Math.round(product.base_usd * conversionRate);
-      const variantAdjustment = variant
-        ? Math.round(variant.price_adjustment_usd * conversionRate)
-        : 0;
-      const pointsPerItem = basePoints + variantAdjustment;
-
       return {
         ...item,
-        productName: product.name,
-        variantName: variant?.name,
-        pointsPerItem,
-        totalPoints: pointsPerItem * item.quantity,
-        imageUrl: product.images?.[0],
+        productName: 'Unknown Product',
+        pointsPerItem: 0,
+        totalPoints: 0,
+        affinityEligible: false,
       };
+    }
+
+    const basePoints = Math.round(product.base_usd * conversionRate);
+      const variantAdjustment = variant
+        ? Math.round(Number(variant.price_adjustment_usd ?? 0) * conversionRate)
+        : 0;
+    const pointsPerItem = basePoints + variantAdjustment;
+    const affinityEligible = isAffinityProduct(product.collections);
+
+    return {
+      ...item,
+      productName: product.name,
+      variantName: variant?.name,
+      pointsPerItem,
+      totalPoints: pointsPerItem * item.quantity,
+      imageUrl: product.images?.[0],
+      affinityEligible,
+    };
     });
 
     setCartItems(enriched);
@@ -105,8 +115,18 @@ export default function CheckoutPageClient({
   }, [loadCart]);
 
   const totalPoints = cartItems.reduce((sum, item) => sum + item.totalPoints, 0);
+  const eligiblePoints = cartItems.reduce(
+    (sum, item) => sum + (item.affinityEligible ? item.totalPoints : 0),
+    0
+  );
   const totalItems = cartItems.reduce((sum, item) => sum + item.quantity, 0);
-  const hasInsufficientPoints = totalPoints > pointsBalance;
+  const spendPlan = allocateCheckoutSpend(
+    totalPoints,
+    eligiblePoints,
+    restrictedBalance,
+    universalBalance
+  );
+  const hasInsufficientPoints = !spendPlan.canAfford;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -118,7 +138,9 @@ export default function CheckoutPageClient({
     }
 
     if (hasInsufficientPoints) {
-      setError('Insufficient points balance for this order.');
+      setError(
+        'Insufficient points for this order. Affinity points apply to Affinity-tagged items first; universal points cover the rest.'
+      );
       return;
     }
 
@@ -136,7 +158,7 @@ export default function CheckoutPageClient({
       } else {
         setError(result.error || 'Failed to place order. Please try again.');
       }
-    } catch (err) {
+    } catch {
       setError('An unexpected error occurred. Please try again.');
     } finally {
       setIsSubmitting(false);
@@ -165,7 +187,7 @@ export default function CheckoutPageClient({
       <BackButton href="/cart" label="Back to Cart" className="mb-4" />
       <PageHeader
         title="Checkout"
-        subtitle="Complete your order and redeem your points"
+        subtitle="Review your order — all items are store pickup"
       />
 
       <form onSubmit={handleSubmit}>
@@ -183,7 +205,7 @@ export default function CheckoutPageClient({
               </CardHeader>
               <CardContent>
                 <p className="text-gray-700">
-                  All orders are fulfilled in person at our location.
+                  You will pick up your order at our location.
                 </p>
               </CardContent>
             </Card>
@@ -194,7 +216,7 @@ export default function CheckoutPageClient({
                   <svg className="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
                   </svg>
-                  <h2 className="text-lg font-semibold text-gray-900">Order Items ({totalItems})</h2>
+                  <h2 className="text-lg font-semibold text-gray-900">Order items ({totalItems})</h2>
                 </div>
               </CardHeader>
               <CardContent>
@@ -225,6 +247,11 @@ export default function CheckoutPageClient({
                           <p className="text-sm text-gray-600">{item.variantName}</p>
                         )}
                         <p className="text-sm text-gray-500">Qty: {item.quantity}</p>
+                        {item.affinityEligible && (
+                          <p className="text-xs text-primary font-medium mt-0.5">
+                            Affinity collection — Affinity points apply first
+                          </p>
+                        )}
                       </div>
                       <div className="text-right">
                         <p className="font-semibold text-gray-900">{item.totalPoints} pts</p>
@@ -240,7 +267,7 @@ export default function CheckoutPageClient({
           <div className="lg:col-span-1">
             <Card className="sticky top-20">
               <CardHeader className="bg-gray-50">
-                <h2 className="text-lg font-semibold text-gray-900">Order Summary</h2>
+                <h2 className="text-lg font-semibold text-gray-900">Order summary</h2>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className={`p-4 rounded-lg border-2 ${
@@ -248,34 +275,61 @@ export default function CheckoutPageClient({
                     ? 'bg-red-50 border-red-200'
                     : 'bg-blue-50 border-blue-200'
                 }`}>
-                  <div className="flex justify-between items-center mb-2">
-                    <span className="text-sm font-medium text-gray-700">Your Balance</span>
-                    <span className="text-xl font-bold text-gray-900">
-                      {pointsBalance.toLocaleString()} pts
-                    </span>
+                  <div className="space-y-1 mb-3 text-sm">
+                    <div className="flex justify-between items-center">
+                      <span className="font-medium text-gray-700">Universal balance</span>
+                      <span className="font-bold text-gray-900">{universalBalance.toLocaleString()} pts</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="font-medium text-gray-700">Affinity points balance</span>
+                      <span className="font-bold text-gray-900">{restrictedBalance.toLocaleString()} pts</span>
+                    </div>
+                    <div className="flex justify-between items-center pt-1 border-t border-blue-200/80">
+                      <span className="text-xs text-gray-600">Total across buckets</span>
+                      <span className="text-sm font-semibold text-gray-800">{pointsBalance.toLocaleString()} pts</span>
+                    </div>
                   </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm font-medium text-gray-700">Order Total</span>
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="text-sm font-medium text-gray-700">Order total</span>
                     <span className="text-xl font-bold text-gray-900">
                       {totalPoints.toLocaleString()} pts
                     </span>
                   </div>
+                  {eligiblePoints > 0 && (
+                    <p className="text-xs text-gray-600 mb-2">
+                      Affinity-eligible in cart: {eligiblePoints.toLocaleString()} pts (affinity points apply here first)
+                    </p>
+                  )}
+                  {!hasInsufficientPoints && (
+                    <div className="text-xs text-gray-700 space-y-0.5 mb-2">
+                      <p>
+                        This order will use{' '}
+                        <strong>{spendPlan.restrictedSpend.toLocaleString()}</strong> affinity points +{' '}
+                        <strong>{spendPlan.universalSpend.toLocaleString()}</strong> universal pts
+                      </p>
+                    </div>
+                  )}
                   {hasInsufficientPoints && (
                     <div className="mt-3 pt-3 border-t border-red-300">
-                      <p className="text-sm font-semibold text-red-800">Insufficient Points</p>
+                      <p className="text-sm font-semibold text-red-800">Insufficient points</p>
                       <p className="text-xs text-red-700 mt-1">
-                        You need {(totalPoints - pointsBalance).toLocaleString()} more points to complete this order
+                        Adjust your cart or earn more points. Universal shortfall:{' '}
+                        {Math.max(0, spendPlan.universalSpend - universalBalance).toLocaleString()} pts
                       </p>
                     </div>
                   )}
                   {!hasInsufficientPoints && (
                     <div className="mt-3 pt-3 border-t border-secondary/30">
                       <div className="flex justify-between items-center">
-                        <span className="text-sm font-medium text-gray-700">After Purchase</span>
+                        <span className="text-sm font-medium text-gray-700">After purchase (est.)</span>
                         <span className="text-lg font-bold text-primary">
-                          {(pointsBalance - totalPoints).toLocaleString()} pts
+                          {(pointsBalance - totalPoints).toLocaleString()} pts total
                         </span>
                       </div>
+                      <p className="text-xs text-gray-600 mt-1">
+                        Universal: {(universalBalance - spendPlan.universalSpend).toLocaleString()} · Affinity points:{' '}
+                        {(restrictedBalance - spendPlan.restrictedSpend).toLocaleString()}
+                      </p>
                     </div>
                   )}
                 </div>
@@ -284,10 +338,6 @@ export default function CheckoutPageClient({
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-600">Items ({totalItems})</span>
                     <span className="font-semibold text-gray-900">{totalPoints.toLocaleString()} pts</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Pickup</span>
-                    <Badge variant="success" size="sm">No fee</Badge>
                   </div>
                 </div>
 
@@ -300,7 +350,7 @@ export default function CheckoutPageClient({
                 {isDevMode && (
                   <Alert variant="warning" className="mb-4">
                     <p className="text-xs">
-                      <strong>Dev Mode:</strong> Order placement requires Supabase configuration
+                      <strong>Dev mode:</strong> Order placement requires Supabase configuration
                     </p>
                   </Alert>
                 )}
@@ -325,7 +375,7 @@ export default function CheckoutPageClient({
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                         </svg>
-                        Place Order ({totalPoints.toLocaleString()} pts)
+                        Place order ({totalPoints.toLocaleString()} pts)
                       </span>
                     )}
                   </Button>
@@ -335,7 +385,7 @@ export default function CheckoutPageClient({
                       <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
                       </svg>
-                      Back to Cart
+                      Back to cart
                     </Button>
                   </Link>
                 </div>

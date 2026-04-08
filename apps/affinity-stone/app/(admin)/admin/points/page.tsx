@@ -150,7 +150,7 @@ export default async function AdminPointsPage({ searchParams }: AdminPointsPageP
     // Build paginated transactions query
     let transactionsQuery = supabase
       .from('points_ledger')
-      .select('id, delta_points, reason, order_id, created_at, profiles!points_ledger_user_id_fkey(email, phone)');
+      .select('id, delta_points, reason, order_id, created_at, point_type, profiles!points_ledger_user_id_fkey(email, phone)');
     transactionsQuery = buildFilteredQuery(transactionsQuery);
     
     transactionsQuery = transactionsQuery
@@ -412,6 +412,11 @@ export default async function AdminPointsPage({ searchParams }: AdminPointsPageP
                                 </p>
                                 <p className="text-sm text-gray-500">
                                   <FormattedDate date={entry.created_at} format="datetimeShort" />
+                                  {entry.point_type && (
+                                    <span className="ml-2 text-xs font-medium text-primary">
+                                      ({entry.point_type === 'restricted' ? 'Affinity points' : 'Universal points'})
+                                    </span>
+                                  )}
                                 </p>
                               </div>
                             </div>

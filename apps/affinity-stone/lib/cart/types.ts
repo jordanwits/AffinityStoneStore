@@ -14,4 +14,6 @@ export interface CartItemWithDetails extends CartItem {
   pointsPerItem: number;
   totalPoints: number;
   imageUrl?: string;
+  /** True when product.collections includes the Affinity collection (restricted points apply first). */
+  affinityEligible?: boolean;
 }

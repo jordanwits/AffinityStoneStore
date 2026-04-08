@@ -8,7 +8,13 @@ import { StorefrontControls } from './StorefrontControls';
 import { SuggestProductButton } from './SuggestProductButton';
 import { FilterPanel } from './FilterPanel';
 import { FilterDrawer } from 'core/components/FilterDrawer';
-import { getStoreSettings, getFilterMetadata } from '@/lib/cache/store-data';
+import {
+  getStoreSettings,
+  getFilterMetadata,
+  filterStorefrontCollectionOptions,
+  storefrontCollectionFiltersFromParams,
+} from '@/lib/cache/store-data';
+import { parsePointsBalancesRpc } from '@/lib/points/buckets';
 
 // Enable aggressive caching: Revalidate this page every 5 minutes
 // This means the page will be statically generated and served from cache
@@ -65,11 +71,7 @@ export default async function DashboardPage({
 }) {
   const params = await searchParams;
 
-  const collectionsFilterList = params.collections
-    ? Array.isArray(params.collections)
-      ? params.collections
-      : [params.collections]
-    : [];
+  const collectionsFilterList = storefrontCollectionFiltersFromParams(params.collections);
   const hasCollectionFilter = collectionsFilterList.length > 0;
 
   // Check if using placeholder Supabase (dev mode)
@@ -77,6 +79,8 @@ export default async function DashboardPage({
                     process.env.NEXT_PUBLIC_SUPABASE_URL.includes('placeholder');
   
   let pointsBalance = 0;
+  let universalBalance = 0;
+  let restrictedBalance = 0;
   let conversionRate = 100;
   let products: any[] = [];
   let allCategories: string[] = [];
@@ -86,7 +90,9 @@ export default async function DashboardPage({
   
   if (isDevMode) {
     // Mock data for dev mode
-    pointsBalance = 5500;
+    universalBalance = 5000;
+    restrictedBalance = 500;
+    pointsBalance = universalBalance + restrictedBalance;
     
     const mockProducts = [
       {
@@ -170,10 +176,9 @@ export default async function DashboardPage({
         return false;
       }
       
-      // Collections filter
-      if (params.collections) {
-        const selectedCollections = Array.isArray(params.collections) ? params.collections : [params.collections];
-        const hasMatch = selectedCollections.some(c => p.collections?.includes(c));
+      // Collections filter (admin-only tags like Custom Order are ignored)
+      if (collectionsFilterList.length > 0) {
+        const hasMatch = collectionsFilterList.some(c => p.collections?.includes(c));
         if (!hasMatch) return false;
       }
       
@@ -222,7 +227,9 @@ export default async function DashboardPage({
     
     // Extract filter options
     allCategories = [...new Set(mockProducts.map(p => p.category).filter((c): c is string => Boolean(c)))];
-    allCollections = [...new Set(mockProducts.flatMap(p => p.collections || []))];
+    allCollections = filterStorefrontCollectionOptions([
+      ...new Set(mockProducts.flatMap(p => p.collections || [])),
+    ]);
     allSizes = [...new Set(mockVariants.map(v => v.size).filter((s): s is string => Boolean(s)))];
     allColors = [...new Set(mockVariants.map(v => v.color).filter((c): c is string => Boolean(c)))];
     
@@ -237,13 +244,23 @@ export default async function DashboardPage({
 
     // Run initial queries in parallel for faster loading
     // Using cached functions for settings and filters (data that rarely changes)
-    const [pointsResult, settings, filters] = await Promise.all([
+    const [pointsResult, balancesResult, settings, filters] = await Promise.all([
       supabase.rpc('get_user_points_balance', { p_user_id: userId }),
+      supabase.rpc('get_user_points_balances', { p_user_id: userId }),
       getStoreSettings(),
       getFilterMetadata(),
     ]);
 
     pointsBalance = pointsResult.data || 0;
+    if (!balancesResult.error && balancesResult.data != null) {
+      const b = parsePointsBalancesRpc(balancesResult.data);
+      universalBalance = b.universal;
+      restrictedBalance = b.restricted;
+      pointsBalance = b.total;
+    } else {
+      universalBalance = pointsBalance;
+      restrictedBalance = 0;
+    }
     conversionRate = settings.conversionRate;
     
     // Use cached filter metadata
@@ -293,10 +310,9 @@ export default async function DashboardPage({
     let filteredProducts = prods || [];
 
     // Apply collections filter (AND logic - product must have ALL selected collections)
-    if (params.collections && filteredProducts.length > 0) {
-      const selectedCollections = Array.isArray(params.collections) ? params.collections : [params.collections];
-      filteredProducts = filteredProducts.filter(p => 
-        p.collections && selectedCollections.every((c: string) => p.collections.includes(c))
+    if (collectionsFilterList.length > 0 && filteredProducts.length > 0) {
+      filteredProducts = filteredProducts.filter(p =>
+        p.collections && collectionsFilterList.every((c: string) => p.collections.includes(c))
       );
     }
 
@@ -388,12 +404,33 @@ export default async function DashboardPage({
     return queryString ? `/dashboard?${queryString}` : '/dashboard';
   };
 
-  const hasActiveFilters = !!(params.q || params.category || params.collections || params.size || params.color || params.minUsd || params.maxUsd);
+  const hasActiveFilters = !!(
+    params.q ||
+    params.category ||
+    collectionsFilterList.length > 0 ||
+    params.size ||
+    params.color ||
+    params.minUsd ||
+    params.maxUsd
+  );
 
   const pointsBalanceCard = (
     <div className="bg-gradient-to-br from-primary/10 to-secondary/10 rounded-lg py-4 mb-3">
-      <p className="text-xs font-semibold text-gray-600 mb-1 uppercase tracking-wide">Your Points</p>
-      <p className="text-3xl font-bold text-primary">{pointsBalance.toLocaleString()}</p>
+      <p className="text-xs font-semibold text-gray-600 mb-3 uppercase tracking-wide">Your Points</p>
+      <div className="space-y-3">
+        <div>
+          <p className="text-xs text-gray-600 mb-0.5">Universal</p>
+          <p className="text-3xl font-bold text-primary leading-tight">
+            {universalBalance.toLocaleString()}
+          </p>
+        </div>
+        <div>
+          <p className="text-xs text-gray-600 mb-0.5">Affinity points</p>
+          <p className="text-3xl font-bold text-primary leading-tight">
+            {restrictedBalance.toLocaleString()}
+          </p>
+        </div>
+      </div>
       <Link href="/points-history" className="text-xs text-secondary hover:text-secondary/80 font-bold inline-flex items-center gap-1 mt-2 transition-colors">
         View History
         <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">

@@ -1,7 +1,10 @@
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { filterStorefrontCollectionOptions } from '@/lib/storefront-collection-filters';
 import { cache } from 'react';
 import { unstable_cache } from 'next/cache';
+
+export { filterStorefrontCollectionOptions, storefrontCollectionFiltersFromParams } from '@/lib/storefront-collection-filters';
 
 type SupabaseReadClient =
   | ReturnType<typeof createAdminClient>
@@ -59,7 +62,7 @@ const getFilterMetadataInternal = cache(async () => {
   
   return {
     categories: filterData?.categories || [],
-    collections: filterData?.collections || [],
+    collections: filterStorefrontCollectionOptions(filterData?.collections || []),
     sizes: filterData?.sizes || [],
     colors: filterData?.colors || [],
   };
@@ -67,7 +70,7 @@ const getFilterMetadataInternal = cache(async () => {
 
 export const getFilterMetadata = unstable_cache(
   async () => getFilterMetadataInternal(),
-  ['filter-metadata'],
+  ['filter-metadata', 'v2-storefront-collection-tags'],
   {
     revalidate: 300, // 5 minutes
     tags: ['filter-metadata'],
@@ -82,7 +85,7 @@ const getProductsByIdsInternal = cache(async (productIds: string[]) => {
   const supabase = await createReadClient();
   const { data } = await supabase
     .from('products')
-    .select('id, name, base_usd, images, active')
+    .select('id, name, base_usd, images, active, collections')
     .in('id', productIds)
     .eq('active', true);
   
@@ -91,7 +94,7 @@ const getProductsByIdsInternal = cache(async (productIds: string[]) => {
 
 export const getProductsByIds = unstable_cache(
   async (productIds: string[]) => getProductsByIdsInternal(productIds),
-  ['products-by-ids'],
+  ['products-by-ids', 'with-collections'],
   {
     revalidate: 300, // 5 minutes
     tags: ['products'],

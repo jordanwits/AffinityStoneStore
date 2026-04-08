@@ -68,12 +68,6 @@ export function customerOrderConfirmationEmail(order: OrderData) {
     <a href="${orderUrl}" style="display: inline-block; background-color: #2563eb; color: #fff; text-decoration: none; padding: 12px 24px; border-radius: 6px; font-weight: bold;">View Order Details</a>
   </div>
   
-  <div style="background-color: #f8f9fa; border-radius: 8px; padding: 20px; margin-top: 20px;">
-    <p style="margin: 0; font-size: 14px; color: #666;">
-      You will be notified when your order is ready for pickup.
-    </p>
-  </div>
-  
   <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb; text-align: center;">
     <p style="font-size: 12px; color: #999; margin: 0;">
       If you have any questions about your order, please contact our support team.
