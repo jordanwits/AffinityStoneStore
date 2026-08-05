@@ -65,7 +65,7 @@ export default function ProductPageClient({
               </svg>
               Product Details
             </h2>
-            <p className="text-gray-700 leading-relaxed">{product.description}</p>
+            <p className="text-gray-700 leading-relaxed whitespace-pre-line">{product.description}</p>
           </CardContent>
         </Card>
 
