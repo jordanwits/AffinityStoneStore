@@ -88,16 +88,26 @@ export default async function OrderDetailPage({
         .single(),
       supabase
         .from('order_items')
-        .select('id, order_id, product_id, product_name, product_image, variant_name, quantity, points_per_item, total_points')
+        .select(
+          'id, order_id, product_id, product_name, variant_name, quantity, points_per_item, total_points, products(images)'
+        )
         .eq('order_id', id),
     ]);
 
     if (!orderResult.data) {
       notFound();
     }
-    
+
+    if (itemsResult.error) {
+      // Without this the page silently renders "0 products" for a real order
+      console.error('Failed to load order items', itemsResult.error);
+    }
+
     order = orderResult.data;
-    items = itemsResult.data || [];
+    items = (itemsResult.data || []).map((item: any) => ({
+      ...item,
+      product_image: item.products?.images?.[0] ?? null,
+    }));
   }
 
   const orderStatusLabel = (status: string) => {
