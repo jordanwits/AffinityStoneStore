@@ -8,7 +8,8 @@ import { Button } from 'core/components/Button';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
-import { PrintOrderButton, ContactSupportButton } from './OrderActions';
+import { PrintOrderButton, EmailSupportButton, CallSupportButton } from './OrderActions';
+import { affinityBranding } from '@/branding';
 import { getTrackingUrl } from '@/lib/tracking';
 import { FormattedDate } from 'core/components/FormattedDate';
 
@@ -386,9 +387,11 @@ export default async function OrderDetailPage({
             <h3 className="text-2xl font-bold text-gray-900 mb-2">Need Help with Your Order?</h3>
             <p className="text-gray-600 mb-6">
               Our support team is here to assist you with any questions about your order or pickup.
+              Reach us at {affinityBranding.support?.email} or {affinityBranding.support?.phone}.
             </p>
-            <div className="flex flex-col sm:flex-row gap-3 justify-center">
-              <ContactSupportButton />
+            <div className="flex flex-col sm:flex-row flex-wrap gap-3 justify-center">
+              <EmailSupportButton orderNumber={order.id.slice(0, 8).toUpperCase()} />
+              <CallSupportButton />
               <Link href="/orders">
                 <Button variant="outline" size="lg">
                   <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">

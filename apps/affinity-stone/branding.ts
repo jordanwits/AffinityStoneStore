@@ -15,5 +15,10 @@ export const affinityBranding: BrandingConfig = {
     secondary: '#F2A200',
     secondaryForeground: '#ffffff',
   },
+  support: {
+    email: 'orders@affinitystone.com',
+    phone: '217-543-3875',
+    phoneDial: '+12175433875',
+  },
   domain: 'affinity-stone',
 };
