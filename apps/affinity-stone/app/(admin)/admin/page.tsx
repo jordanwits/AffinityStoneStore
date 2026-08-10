@@ -3,6 +3,7 @@ import { Card, CardHeader, CardContent } from 'core/components/Card';
 import { FormattedDate } from 'core/components/FormattedDate';
 import Link from 'next/link';
 import { displayProfileContact } from '@/lib/auth/display-contact';
+import { orderStatusLabel, orderStatusPillClasses } from '@/lib/orders/status';
 
 export default async function AdminDashboardPage() {
   // Check if using placeholder Supabase (dev mode)
@@ -140,17 +141,9 @@ export default async function AdminDashboardPage() {
                         #{order.id.slice(0, 8).toUpperCase()}
                       </span>
                       <span
-                        className={`px-2 py-1 rounded-full text-xs font-medium shrink-0 ${
-                          order.status === 'delivered'
-                            ? 'bg-green-100 text-green-900'
-                            : order.status === 'shipped'
-                            ? 'bg-purple-100 text-purple-900'
-                            : order.status === 'processing'
-                            ? 'bg-blue-100 text-blue-900'
-                            : 'bg-yellow-100 text-yellow-900'
-                        }`}
+                        className={`px-2 py-1 rounded-full text-xs font-medium shrink-0 ${orderStatusPillClasses(order.status)}`}
                       >
-                        {order.status}
+                        {orderStatusLabel(order.status)}
                       </span>
                     </div>
                     <p className="text-sm text-gray-900 truncate mb-1">
@@ -204,17 +197,9 @@ export default async function AdminDashboardPage() {
                       <td className="px-4 py-3 text-sm font-semibold text-gray-900">{order.total_points}</td>
                       <td className="px-4 py-3 text-sm">
                         <span
-                          className={`px-2 py-1 rounded-full text-xs font-medium ${
-                            order.status === 'delivered'
-                              ? 'bg-green-100 text-green-900'
-                              : order.status === 'shipped'
-                              ? 'bg-purple-100 text-purple-900'
-                              : order.status === 'processing'
-                              ? 'bg-blue-100 text-blue-900'
-                              : 'bg-yellow-100 text-yellow-900'
-                          }`}
+                          className={`px-2 py-1 rounded-full text-xs font-medium ${orderStatusPillClasses(order.status)}`}
                         >
-                          {order.status}
+                          {orderStatusLabel(order.status)}
                         </span>
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-700">

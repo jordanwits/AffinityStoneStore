@@ -10,6 +10,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { PrintOrderButton, EmailSupportButton, CallSupportButton } from './OrderActions';
 import { affinityBranding } from '@/branding';
+import { orderStatusLabel, orderStatusBadgeVariant } from '@/lib/orders/status';
 import { getTrackingUrl } from '@/lib/tracking';
 import { FormattedDate } from 'core/components/FormattedDate';
 
@@ -111,24 +112,6 @@ export default async function OrderDetailPage({
     }));
   }
 
-  const orderStatusLabel = (status: string) => {
-    const labels: Record<string, string> = {
-      shipped: 'Ready for pickup',
-      delivered: 'Picked up',
-    };
-    return labels[status] ?? status.charAt(0).toUpperCase() + status.slice(1);
-  };
-
-  const getStatusVariant = (status: string) => {
-    switch (status) {
-      case 'completed': return 'success';
-      case 'ready': return 'info';
-      case 'processing': return 'warning';
-      case 'pending': return 'default';
-      default: return 'default';
-    }
-  };
-
   return (
     <div>
       {/* Back Button and Breadcrumb */}
@@ -156,7 +139,7 @@ export default async function OrderDetailPage({
           </p>
         </div>
         <div className="flex flex-wrap gap-3">
-          <Badge variant={getStatusVariant(order.status)} size="lg" className="px-4 py-2">
+          <Badge variant={orderStatusBadgeVariant(order.status)} size="lg" className="px-4 py-2">
             {orderStatusLabel(order.status)}
           </Badge>
           <PrintOrderButton />

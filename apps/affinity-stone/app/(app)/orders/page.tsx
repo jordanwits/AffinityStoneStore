@@ -8,6 +8,7 @@ import { Button } from 'core/components/Button';
 import Link from 'next/link';
 import { OrdersPeriodFilter } from './OrdersPeriodFilter';
 import { FormattedDate } from 'core/components/FormattedDate';
+import { orderStatusLabel, orderStatusBadgeVariant } from '@/lib/orders/status';
 
 // Cache orders list for 2 minutes (orders are user-specific and update frequently)
 export const revalidate = 120;
@@ -91,25 +92,6 @@ export default async function OrdersPage({ searchParams }: OrdersPageProps) {
     orders = dataResult.data || [];
   }
 
-  const orderStatusLabel = (status: string) => {
-    const labels: Record<string, string> = {
-      shipped: 'Ready for pickup',
-      delivered: 'Picked up',
-    };
-    return labels[status] ?? status.charAt(0).toUpperCase() + status.slice(1);
-  };
-
-  const getStatusVariant = (status: string) => {
-    switch (status) {
-      case 'delivered': return 'success';
-      case 'shipped': return 'info';
-      case 'processing': return 'warning';
-      case 'new': return 'default';
-      case 'cancelled': return 'error';
-      default: return 'default';
-    }
-  };
-
   const totalPages = Math.ceil(totalCount / itemsPerPage);
 
   return (
@@ -134,7 +116,7 @@ export default async function OrdersPage({ searchParams }: OrdersPageProps) {
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                     <div className="flex-1">
                       <div className="flex items-center gap-3 mb-2">
-                        <Badge variant={getStatusVariant(order.status)}>
+                        <Badge variant={orderStatusBadgeVariant(order.status)}>
                           {orderStatusLabel(order.status)}
                         </Badge>
                         <span className="text-sm text-gray-500">
