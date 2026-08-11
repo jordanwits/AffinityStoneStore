@@ -72,15 +72,24 @@ export function ExportRow({ exportRecord, isDevMode }: ExportRowProps) {
     }
   };
 
+  // An inventory row stores a snapshot date rather than a month, so a bare "2026-08-11"
+  // under a "Month" heading would read as a period it never covered.
+  const periodLabel =
+    exportRecord.export_type === 'inventory'
+      ? `As of ${exportRecord.month}`
+      : exportRecord.month;
+
+  const typeLabel = exportRecord.export_type.replace('_', ' ');
+
   return (
     <>
       <tr className="hover:bg-gray-50">
         <td className="py-4 pr-4 text-sm font-medium text-gray-900">
-          {exportRecord.month}
+          {periodLabel}
         </td>
         <td className="py-4 pr-4 text-sm">
           <Badge variant={getTypeVariant(exportRecord.export_type)}>
-            {exportRecord.export_type.replace('_', ' ')}
+            {typeLabel}
           </Badge>
         </td>
         <td className="py-4 pr-4 text-sm text-gray-600">
@@ -140,7 +149,7 @@ export function ExportRow({ exportRecord, isDevMode }: ExportRowProps) {
         onClose={() => setShowDeleteModal(false)}
         onConfirm={handleDeleteConfirm}
         title="Delete Export"
-        message={`Are you sure you want to delete the export for ${exportRecord.month} (${exportRecord.export_type.replace('_', ' ')})?\n\nThis will permanently delete the CSV file and cannot be undone.`}
+        message={`Are you sure you want to delete the export for ${periodLabel} (${typeLabel})?\n\nThis will permanently delete the CSV file and cannot be undone.`}
         confirmText="Delete"
         cancelText="Cancel"
         variant="danger"
