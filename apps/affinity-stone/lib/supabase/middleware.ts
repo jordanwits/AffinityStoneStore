@@ -2,6 +2,7 @@ import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 import type { User } from '@supabase/supabase-js';
 import { userMustChangePassword } from '@/lib/auth/must-change-password';
+import { LOGIN_REDIRECT_PARAM, safeRedirectPath } from '@/lib/auth/redirect';
 
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
@@ -131,9 +132,14 @@ export async function updateSession(request: NextRequest) {
   }
 
   if (isAppRoute && !isAuthenticated) {
-    // Redirect to login if trying to access protected route without auth
+    // Redirect to login if trying to access protected route without auth,
+    // remembering where they were headed (e.g. an order link from an email)
+    // so signing in drops them on that page instead of the dashboard.
     const url = request.nextUrl.clone();
+    const destination = `${pathname}${request.nextUrl.search}`;
     url.pathname = '/login';
+    url.search = '';
+    url.searchParams.set(LOGIN_REDIRECT_PARAM, destination);
     const redirectResponse = NextResponse.redirect(url);
     if (hadRefreshTokenError) {
       clearSupabaseAuthCookies(redirectResponse);
@@ -157,14 +163,18 @@ export async function updateSession(request: NextRequest) {
 
   if (isAuthRoute && isAuthenticated) {
     if (request.nextUrl.pathname === '/login') {
-      const url = request.nextUrl.clone();
       if (passwordChangeRequired) {
+        const url = request.nextUrl.clone();
         url.pathname = '/update-password';
+        url.search = '';
         url.searchParams.set('required', '1');
-      } else {
-        url.pathname = '/dashboard';
+        return NextResponse.redirect(url);
       }
-      return NextResponse.redirect(url);
+      // Already signed in and arriving at login with a destination in hand
+      // (an emailed link opened in a tab that still has a session).
+      const destination =
+        safeRedirectPath(request.nextUrl.searchParams.get(LOGIN_REDIRECT_PARAM)) ?? '/dashboard';
+      return NextResponse.redirect(new URL(destination, request.url));
     }
   }
 

@@ -9,6 +9,7 @@ import { Card, CardHeader, CardContent } from 'core/components/Card';
 import { BrandMark } from 'core/components/BrandMark';
 import { PhoneInput } from 'core/components/PhoneInput';
 import { isCompleteNanpDigits } from 'core/lib/phone-format';
+import { LOGIN_REDIRECT_PARAM, safeRedirectPath } from '@/lib/auth/redirect';
 import { signInWithPhonePassword } from './actions';
 
 type LoginMode = 'email' | 'phone';
@@ -29,6 +30,13 @@ export default function LoginPage() {
     setError('');
     setLoading(true);
 
+    // Where the user was headed before being sent here (e.g. an order link
+    // from an email); read at submit time so no Suspense boundary is needed.
+    const destination =
+      safeRedirectPath(
+        new URLSearchParams(window.location.search).get(LOGIN_REDIRECT_PARAM)
+      ) ?? '/dashboard';
+
     try {
       if (mode === 'email') {
         const { error: signError } = await supabase.auth.signInWithPassword({
@@ -39,7 +47,7 @@ export default function LoginPage() {
         if (signError) {
           setError(signError.message);
         } else {
-          router.push('/dashboard');
+          router.push(destination);
           router.refresh();
         }
       } else {
@@ -52,7 +60,7 @@ export default function LoginPage() {
         if (!result.success) {
           setError(result.error);
         } else {
-          router.push('/dashboard');
+          router.push(destination);
           router.refresh();
         }
       }
