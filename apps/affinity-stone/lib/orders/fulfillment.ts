@@ -19,6 +19,21 @@ export interface OrderItemProcurement {
   pillClasses: string;
 }
 
+/**
+ * Units the team has to procure for this line.
+ *
+ * A stocked line is never made, whatever its count says — an untracked variant records
+ * no units_from_stock, and reading that as "make all of them" would put every unstocked
+ * mug and keychain on the procurement list.
+ */
+export function unitsToMake(item: OrderItemFulfillmentInput): number {
+  if (!item.made_to_order) {
+    return 0;
+  }
+
+  return Math.max(0, item.quantity - (item.units_from_stock ?? 0));
+}
+
 /** Null for a line with nothing to say: a stocked product came off the shelf as always. */
 export function orderItemProcurement(
   item: OrderItemFulfillmentInput
@@ -27,8 +42,7 @@ export function orderItemProcurement(
     return null;
   }
 
-  const fromStock = item.units_from_stock ?? 0;
-  const toMake = item.quantity - fromStock;
+  const toMake = unitsToMake(item);
 
   if (toMake <= 0) {
     return { label: 'From stock', pillClasses: 'bg-green-100 text-green-900' };
