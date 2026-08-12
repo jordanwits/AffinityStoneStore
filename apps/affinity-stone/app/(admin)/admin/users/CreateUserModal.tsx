@@ -161,7 +161,7 @@ export function CreateUserModal({ isOpen, onClose, isDevMode, initialEmail, init
 
         {tempPassword && (
           <Alert variant="success" className="mb-4">
-            <p className="text-sm font-semibold mb-2">User created — share this temporary password securely (out of band)</p>
+            <p className="text-sm font-semibold mb-2">User created. Share this temporary password securely (out of band)</p>
             <div className="flex flex-wrap items-center gap-2 mb-2">
               <code className="text-xs bg-white/80 px-2 py-1 rounded border break-all flex-1 min-w-0">{tempPassword}</code>
               <Button type="button" variant="outline" className="shrink-0 text-sm" onClick={copyTempPassword}>

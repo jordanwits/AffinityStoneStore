@@ -187,7 +187,7 @@ export default function CheckoutPageClient({
       <BackButton href="/cart" label="Back to Cart" className="mb-4" />
       <PageHeader
         title="Checkout"
-        subtitle="Review your order — all items are store pickup"
+        subtitle="Review your order (all items are store pickup)"
       />
 
       <form onSubmit={handleSubmit}>
@@ -249,7 +249,7 @@ export default function CheckoutPageClient({
                         <p className="text-sm text-gray-500">Qty: {item.quantity}</p>
                         {item.affinityEligible && (
                           <p className="text-xs text-primary font-medium mt-0.5">
-                            Affinity collection — Affinity points apply first
+                            Affinity collection: Affinity points apply first
                           </p>
                         )}
                       </div>
