@@ -6,6 +6,7 @@ import { Card, CardContent } from 'core/components/Card';
 import { Alert } from 'core/components/Alert';
 import Link from 'next/link';
 import { addToCart } from '@/lib/cart/storage';
+import { availabilityPillClasses, variantAvailability } from '@/lib/inventory/availability';
 
 // Map color names to CSS colors
 const colorMap: Record<string, string> = {
@@ -32,7 +33,8 @@ interface Variant {
   size?: string;
   color?: string;
   price_adjustment_usd: number;
-  inventory_count?: number;
+  /** Null is an untracked variant, which is not the same as a count of 0. */
+  inventory_count?: number | null;
   image_url?: string;
 }
 
@@ -124,21 +126,15 @@ export default function AddToCartButton({
     : undefined;
 
   const selectedVariantId = selectedVariant?.id;
-  
-  // Check if selected combination is in stock. Made-to-order products get made when stock
-  // runs out, so stock never gates them.
-  const isOutOfStock = !madeToOrder &&
-    selectedVariant &&
-    selectedVariant.inventory_count !== null &&
-    selectedVariant.inventory_count !== undefined &&
-    selectedVariant.inventory_count < 1;
 
-  // How much of this selection would have to be made rather than pulled off the shelf.
-  // Made-to-order sells from stock first, so a selection covered by what is on hand needs
-  // no lead-time warning. Nothing selected yet, or an untracked variant, counts as nothing
-  // on hand — better to warn and be wrong than to promise stock we can't confirm.
-  const unitsOnHand = Math.max(0, selectedVariant?.inventory_count ?? 0);
-  const unitsToMake = madeToOrder ? Math.max(0, quantity - unitsOnHand) : 0;
+  // What the store can say about this exact combination at this exact quantity. Null until
+  // something is selected, since there is nothing specific to describe yet: the product-level
+  // badge above covers that case.
+  const availability = selectedVariant
+    ? variantAvailability(selectedVariant, madeToOrder, quantity)
+    : null;
+
+  const isOutOfStock = availability?.state === 'out_of_stock';
 
   // Every dimension the product offers has a selection
   const dimensionsSatisfied =
@@ -146,10 +142,13 @@ export default function AddToCartButton({
     (!hasColors || !!selectedColor) &&
     (!hasSizes || !!selectedSize);
 
+  // A quantity the shelf cannot cover is rejected by place_points_order, so it is stopped
+  // here rather than at the end of checkout. Made-to-order lines always pass: running out
+  // means the rest gets made.
   const canAddToCart =
     !hasVariants ||
     ((hasOptions ? !!selectedOption || dimensionsSatisfied : dimensionsSatisfied) &&
-      !isOutOfStock);
+      (availability?.sufficient ?? true));
 
   const handleAddToCart = () => {
     if (!canAddToCart) return;
@@ -173,6 +172,9 @@ export default function AddToCartButton({
   const getAvailabilityMessage = () => {
     if (isOutOfStock) {
       return 'This combination is out of stock';
+    }
+    if (availability && !availability.sufficient) {
+      return `Only ${availability.unitsOnHand} left`;
     }
     if (!canAddToCart && hasColors && !selectedColor) {
       return 'Please select a color';
@@ -368,15 +370,22 @@ export default function AddToCartButton({
 
       {/* Price Summary & Add to Cart */}
       <div className="pt-4 border-t space-y-4">
-        {unitsToMake > 0 && (
-          <div className="rounded-md bg-primary/5 border border-primary/20 p-3">
-            <p className="text-sm font-semibold text-gray-900">Made to order</p>
-            <p className="text-sm text-gray-700 mt-0.5">
-              {unitsToMake < quantity
-                ? `We have ${quantity - unitsToMake} of these on hand. We'll order the other ${unitsToMake} once you place your order.`
-                : "We don't have this one on hand. We'll order it once you place your order."}{' '}
-              See the product details for lead time.
-            </p>
+        {availability && availability.state !== 'in_stock' && (
+          <div className="rounded-md bg-gray-50 border border-gray-200 p-3">
+            <span
+              className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${availabilityPillClasses(
+                availability.tone
+              )}`}
+            >
+              {availability.label}
+            </span>
+            {availability.detail && (
+              <p className="text-sm text-gray-700 mt-1.5">
+                {availability.detail}
+                {availability.state === 'made_to_order' &&
+                  ' See the product details for lead time.'}
+              </p>
+            )}
           </div>
         )}
 
