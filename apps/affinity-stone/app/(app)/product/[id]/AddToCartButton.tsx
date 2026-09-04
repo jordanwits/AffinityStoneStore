@@ -67,6 +67,12 @@ export default function AddToCartButton({
   const handleColorChange = (color: string) => {
     setSelectedColor(color);
     setSelectedOption(undefined);
+    // A size the product isn't made in for this colour cannot stay selected: the pair would
+    // match no variant at all, and an unmatched pair is what used to reach the cart as a
+    // bare product line with no colour, no price adjustment and the cover photo.
+    if (selectedSize && !variants.some((v) => v.color === color && v.size === selectedSize)) {
+      setSelectedSize(undefined);
+    }
     if (onColorChange) {
       onColorChange(color);
     }
@@ -104,6 +110,18 @@ export default function AddToCartButton({
   const hasColors = availableColors.length > 0;
   const hasSizes = availableSizes.length > 0;
   const hasOptions = optionVariants.length > 0;
+
+  /**
+   * Whether the product is made in this size in the colour currently chosen. A shirt can
+   * come in Green in S and M only, and every size looked equally pickable, so Green + L was
+   * a dead end the page never mentioned. Sizes are gated by colour rather than the other way
+   * round because the colour picker sits first; colours stay clickable so a customer can
+   * always change their mind without getting stuck.
+   */
+  const isSizeOffered = (size: string) =>
+    !hasColors || !selectedColor
+      ? true
+      : variants.some((v) => v.size === size && v.color === selectedColor);
 
   // Find the matching variant combination
   const selectedVariant = selectedOption
@@ -145,9 +163,13 @@ export default function AddToCartButton({
   // A quantity the shelf cannot cover is rejected by place_points_order, so it is stopped
   // here rather than at the end of checkout. Made-to-order lines always pass: running out
   // means the rest gets made.
+  // The variant itself has to resolve, not just the dimensions. Satisfying every dimension
+  // proves a colour and a size were picked, never that the product is made in that pair, and
+  // adding an unresolved pair puts a line in the cart with no variant on it.
   const canAddToCart =
     !hasVariants ||
     ((hasOptions ? !!selectedOption || dimensionsSatisfied : dimensionsSatisfied) &&
+      !!selectedVariant &&
       (availability?.sufficient ?? true));
 
   const handleAddToCart = () => {
@@ -175,6 +197,11 @@ export default function AddToCartButton({
     }
     if (availability && !availability.sufficient) {
       return `Only ${availability.unitsOnHand} left`;
+    }
+    if (dimensionsSatisfied && !selectedVariant) {
+      return selectedColor && selectedSize
+        ? `${selectedSize} does not come in ${selectedColor}`
+        : 'That combination is not available';
     }
     if (!canAddToCart && hasColors && !selectedColor) {
       return 'Please select a color';
@@ -280,20 +307,28 @@ export default function AddToCartButton({
           <div className="flex flex-wrap gap-3">
             {availableSizes.map((size) => {
               const isSelected = selectedSize === size;
-              
+              const offered = isSizeOffered(size);
+
               return (
                 <button
                   key={size}
                   onClick={() => handleSizeChange(size)}
+                  disabled={!offered}
                   className={`relative h-12 min-w-[3rem] px-3 rounded-full border-2 transition-all flex items-center justify-center ${
                     isSelected
                       ? 'border-primary bg-primary text-white shadow-lg scale-110'
-                      : 'border-gray-400 hover:border-gray-600 bg-white text-gray-900'
+                      : offered
+                      ? 'border-gray-400 hover:border-gray-600 bg-white text-gray-900'
+                      : 'border-gray-200 bg-gray-50 text-gray-400 line-through cursor-not-allowed'
                   }`}
-                  title={size}
-                  aria-label={size}
+                  title={offered ? size : `${size} does not come in ${selectedColor}`}
+                  aria-label={offered ? size : `${size}, not available in ${selectedColor}`}
                 >
-                  <span className={`font-semibold text-sm ${isSelected ? 'text-white' : 'text-gray-900'}`}>
+                  <span
+                    className={`font-semibold text-sm ${
+                      isSelected ? 'text-white' : offered ? 'text-gray-900' : 'text-gray-400'
+                    }`}
+                  >
                     {size}
                   </span>
                   {isSelected && (

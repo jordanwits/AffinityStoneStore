@@ -159,8 +159,6 @@ export default async function DashboardPage({
     const mockVariants = [
       { product_id: '1', size: 'S', color: 'Blue', inventory_count: 2 },
       { product_id: '1', size: 'M', color: 'Blue', inventory_count: 1 },
-      { product_id: '1', size: 'L', color: 'Blue', inventory_count: 0 },
-      { product_id: '1', size: 'XL', color: 'Blue', inventory_count: 0 },
       { product_id: '1', size: 'S', color: 'Black', inventory_count: 0 },
       { product_id: '1', size: 'M', color: 'Black', inventory_count: 0 },
       { product_id: '1', size: 'L', color: 'Black', inventory_count: 0 },
