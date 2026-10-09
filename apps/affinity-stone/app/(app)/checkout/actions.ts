@@ -9,6 +9,7 @@ import { customerOrderConfirmationEmail, adminNewOrderEmail } from '@/lib/email/
 import { getStoreSettings, getProductsByIds, getVariantsByProductIds } from '@/lib/cache/store-data';
 import { displayProfileContact } from '@/lib/auth/display-contact';
 import { unitsToMake } from '@/lib/orders/fulfillment';
+import { normalizeOrderNote, ORDER_NOTE_MAX_LENGTH } from '@/lib/orders/notes';
 import { parsePointsBalancesRpc } from '@/lib/points/buckets';
 
 interface PlaceOrderResult {
@@ -122,6 +123,15 @@ export async function placeOrder(formData: FormData): Promise<PlaceOrderResult> 
       return { success: false, error: 'Cart is empty' };
     }
 
+    const customerNote = normalizeOrderNote(formData.get('note'));
+
+    if (customerNote && customerNote.length > ORDER_NOTE_MAX_LENGTH) {
+      return {
+        success: false,
+        error: `Your note is too long. Please keep it under ${ORDER_NOTE_MAX_LENGTH} characters.`,
+      };
+    }
+
     // Normalize and validate cart items
     // Merge duplicates by (productId, variantId) and reject invalid quantities
     const normalizedItems = new Map<string, CartItem>();
@@ -162,6 +172,10 @@ export async function placeOrder(formData: FormData): Promise<PlaceOrderResult> 
       p_ship_state: null,
       p_ship_zip: null,
       p_ship_country: null,
+      // Only sent when there is a note. Until migration 040 is run, the database function
+      // has no such parameter and PostgREST rejects the whole call, so leaving it off keeps
+      // ordinary checkouts working in that gap.
+      ...(customerNote ? { p_customer_note: customerNote } : {}),
     });
 
     if (rpcError) {
@@ -173,6 +187,11 @@ export async function placeOrder(formData: FormData): Promise<PlaceOrderResult> 
         return { success: false, error: 'One or more items in your cart are no longer available' };
       } else if (rpcError.message.includes('does not belong to product')) {
         return { success: false, error: 'Invalid product variant selected' };
+      } else if (rpcError.message.includes('Order note is too long')) {
+        return {
+          success: false,
+          error: `Your note is too long. Please keep it under ${ORDER_NOTE_MAX_LENGTH} characters.`,
+        };
       } else {
         return { success: false, error: 'Failed to place order. Please try again.' };
       }
@@ -234,6 +253,7 @@ export async function placeOrder(formData: FormData): Promise<PlaceOrderResult> 
           itemCount: items.reduce((sum, item) => sum + item.quantity, 0),
           createdAt: orderDetails.created_at,
           madeToOrderItems,
+          customerNote,
         };
 
         if (profileEmail) {

@@ -16,6 +16,7 @@ import {
   ITEM_FULFILLMENT_STATUSES,
   type ItemFulfillmentStatus,
 } from '@/lib/orders/fulfillment';
+import { normalizeOrderNote, ORDER_NOTE_MAX_LENGTH } from '@/lib/orders/notes';
 
 const VALID_STATUSES = ['new', 'processing', 'shipped', 'delivered', 'cancelled'] as const;
 type OrderStatus = typeof VALID_STATUSES[number];
@@ -24,11 +25,10 @@ interface UpdateOrderStatusData {
   orderId: string;
   status: string;
   trackingNumber?: string;
-  notes?: string;
   /**
    * Whether the customer hears about this save. Defaults to "the status actually changed",
-   * so correcting a reference number or adding an internal note no longer re-announces a
-   * status the customer was already told about. Passing true re-sends on demand.
+   * so correcting a reference number no longer re-announces a status the customer was
+   * already told about. Passing true re-sends on demand.
    */
   notifyCustomer?: boolean;
 }
@@ -75,10 +75,6 @@ export async function updateOrderStatus(data: UpdateOrderStatusData) {
     updateData.tracking_number = data.trackingNumber || null;
   }
 
-  if (data.notes !== undefined) {
-    updateData.notes = data.notes || null;
-  }
-
   const { error } = await supabase
     .from('orders')
     .update(updateData)
@@ -95,6 +91,13 @@ export async function updateOrderStatus(data: UpdateOrderStatusData) {
   revalidatePath('/orders');
   revalidatePath(`/orders/${data.orderId}`);
   
+  // Marking the whole order ready for pickup (or picked up) moves its lines along with it,
+  // and a made-to-order line's made units leave inventory as it does (migration 041). The
+  // storefront quotes stock, so its cached variant rows have to go too.
+  if (statusChanged && (data.status === 'shipped' || data.status === 'delivered')) {
+    revalidateTag('product-variants');
+  }
+
   // Send email notifications (failures should not block status update)
   try {
     // The customer hears about this only when asked to; the caller's default is
@@ -188,7 +191,7 @@ export async function sendPickupNotice(
     supabase
       .from('order_items')
       .select(
-        'id, product_name, variant_name, variant_size, variant_color, quantity, fulfillment_status'
+        'id, product_name, variant_name, variant_size, variant_color, quantity, fulfillment_status, made_to_order'
       )
       .eq('order_id', data.orderId),
   ]);
@@ -265,9 +268,10 @@ export async function sendPickupNotice(
 
   // Record what the customer was just told, so it outlives whoever sent it. Only pending
   // lines move: a line already picked up is not un-collected by mentioning it again.
-  const idsToMarkReady = allItems
-    .filter((item) => readyIds.has(item.id) && item.fulfillment_status === 'pending')
-    .map((item) => item.id);
+  const linesToMarkReady = allItems.filter(
+    (item) => readyIds.has(item.id) && item.fulfillment_status === 'pending'
+  );
+  const idsToMarkReady = linesToMarkReady.map((item) => item.id);
 
   let warning: string | undefined;
 
@@ -281,6 +285,10 @@ export async function sendPickupNotice(
       console.error('Pickup notice sent but marking lines ready failed:', markError);
       warning =
         'The email went out, but the items could not be marked ready — set them by hand below.';
+    } else if (linesToMarkReady.some((item) => item.made_to_order)) {
+      // A made-to-order line marked ready takes its made units out of inventory
+      // (migration 041), and the storefront's cached stock has to follow
+      revalidateTag('product-variants');
     }
   }
 
@@ -310,6 +318,10 @@ interface UpdateItemFulfillmentData {
  * Deliberately silent: the customer hears about readiness through a pickup notice they can
  * read, not through every correction staff make to the board. It also leaves orders.status
  * alone — an order is done when staff say it is, not when the last checkbox flips.
+ *
+ * Not silent on inventory: a made-to-order line leaving "not ready" takes its made units out
+ * of stock, and going back puts them back. The database does that (migration 041), so it
+ * happens the same way however the line is moved.
  */
 export async function updateItemFulfillment(data: UpdateItemFulfillmentData) {
   const isDevMode = !process.env.NEXT_PUBLIC_SUPABASE_URL ||
@@ -331,7 +343,7 @@ export async function updateItemFulfillment(data: UpdateItemFulfillmentData) {
     .update({ fulfillment_status: data.status })
     .eq('id', data.itemId)
     .eq('order_id', data.orderId)
-    .select('id');
+    .select('id, made_to_order');
 
   if (error) {
     console.error('Error updating item fulfillment:', error);
@@ -344,6 +356,10 @@ export async function updateItemFulfillment(data: UpdateItemFulfillmentData) {
     return { success: false, error: 'Item not found, or you do not have permission to change it' };
   }
 
+  if (updated[0].made_to_order) {
+    revalidateTag('product-variants');
+  }
+
   revalidatePath('/admin/orders');
   revalidatePath(`/admin/orders/${data.orderId}`);
   revalidatePath('/orders');
@@ -352,6 +368,59 @@ export async function updateItemFulfillment(data: UpdateItemFulfillmentData) {
   return { success: true };
 }
 
+/**
+ * Save what staff have written about an order.
+ *
+ * This used to ride along with a status save, which meant a note could only be changed
+ * from inside the status form and clearing one did nothing. It is its own save now, and it
+ * never emails anyone: these notes are for staff, and customers do not see them.
+ */
+export async function updateOrderNotes(data: { orderId: string; notes: string }) {
+  const isDevMode = !process.env.NEXT_PUBLIC_SUPABASE_URL ||
+    process.env.NEXT_PUBLIC_SUPABASE_URL.includes('placeholder');
+
+  if (isDevMode) {
+    return { success: false, error: 'Order operations require Supabase to be configured.' };
+  }
+
+  const notes = normalizeOrderNote(data.notes);
+
+  if (notes && notes.length > ORDER_NOTE_MAX_LENGTH) {
+    return {
+      success: false,
+      error: `Notes can be at most ${ORDER_NOTE_MAX_LENGTH} characters.`,
+    };
+  }
+
+  const { supabase } = await requireAdmin();
+
+  const { data: updated, error } = await supabase
+    .from('orders')
+    .update({ notes })
+    .eq('id', data.orderId)
+    .select('id');
+
+  if (error) {
+    console.error('Error updating order notes:', error);
+    return { success: false, error: 'Failed to save the notes' };
+  }
+
+  // RLS drops a forbidden update without raising, so an empty result is the only signal
+  // that the write did not land.
+  if (!updated || updated.length === 0) {
+    return { success: false, error: 'Order not found, or you do not have permission to change it' };
+  }
+
+  revalidatePath('/admin/orders');
+  revalidatePath(`/admin/orders/${data.orderId}`);
+
+  return { success: true };
+}
+
+/**
+ * Delete an order. The database copies it into deleted_orders first (migration 042), so an
+ * admin can bring it back from the Deleted orders page.
+ */
 export async function deleteOrder(orderId: string) {
   const isDevMode = !process.env.NEXT_PUBLIC_SUPABASE_URL ||
     process.env.NEXT_PUBLIC_SUPABASE_URL.includes('placeholder');
@@ -360,7 +429,7 @@ export async function deleteOrder(orderId: string) {
     return { success: false, error: 'Order operations require Supabase to be configured.' };
   }
 
-  const { supabase } = await requireAdmin();
+  const { supabase, user } = await requireAdmin();
 
   const { data: order, error: fetchError } = await supabase
     .from('orders')
@@ -379,8 +448,67 @@ export async function deleteOrder(orderId: string) {
     return { success: false, error: 'Failed to delete order' };
   }
 
+  // The trigger that made the copy runs as whoever issued the delete, which here is usually
+  // the service role, where it cannot tell which admin pressed the button. Stamp it from the
+  // session instead. Losing this only blanks the "deleted by" column, so it does not fail the
+  // delete that already happened.
+  const { error: stampError } = await supabase
+    .from('deleted_orders')
+    .update({ deleted_by: user.id })
+    .eq('order_id', orderId);
+
+  if (stampError) {
+    console.error('Order deleted but recording who deleted it failed:', stampError);
+  }
+
   revalidatePath('/admin/orders');
+  revalidatePath('/admin/orders/deleted');
   revalidatePath('/orders');
+  return { success: true };
+}
+
+/**
+ * Bring a deleted order back, lines and all, from the deleted_orders bin.
+ *
+ * Inventory and points are left alone, because deleting never touched them: the points the
+ * customer spent stayed deducted the whole time, and line up with the order again now.
+ */
+export async function restoreDeletedOrder(orderId: string) {
+  const isDevMode = !process.env.NEXT_PUBLIC_SUPABASE_URL ||
+    process.env.NEXT_PUBLIC_SUPABASE_URL.includes('placeholder');
+
+  if (isDevMode) {
+    return { success: false, error: 'Order operations require Supabase to be configured.' };
+  }
+
+  const { supabase } = await requireAdmin();
+
+  const { error } = await supabase.rpc('restore_deleted_order', { p_order_id: orderId });
+
+  if (error) {
+    console.error('Error restoring order:', error);
+
+    // The function's own messages are written for staff: say which part blocks the restore
+    const knownReasons = [
+      'not in the deleted orders list',
+      'already exists',
+      'no longer has an account',
+      'has since been deleted',
+    ];
+
+    if (knownReasons.some((reason) => error.message.includes(reason))) {
+      return { success: false, error: error.message };
+    }
+
+    return { success: false, error: 'Failed to restore the order' };
+  }
+
+  revalidatePath('/admin/orders');
+  revalidatePath('/admin/orders/deleted');
+  revalidatePath(`/admin/orders/${orderId}`);
+  revalidatePath('/orders');
+  revalidatePath(`/orders/${orderId}`);
+
   return { success: true };
 }
 
@@ -460,16 +588,18 @@ export async function refundOrder(
   if (options.withReturn) {
     const { data: items } = await supabase
       .from('order_items')
-      .select('variant_id, units_from_stock')
+      .select('variant_id, units_from_stock, units_from_stock_at_ready')
       .eq('order_id', orderId);
 
     if (items && items.length > 0) {
       for (const item of items) {
         // Put back exactly what left the shelf. A made-to-order line may have drawn some,
-        // all, or none of its units from stock, so quantity is the wrong number here.
-        const unitsFromStock = item.units_from_stock ?? 0;
+        // all, or none of its units from stock at checkout, and the made units leave stock
+        // when the line is marked ready, so quantity is the wrong number here.
+        const unitsToReturn =
+          (item.units_from_stock ?? 0) + (item.units_from_stock_at_ready ?? 0);
 
-        if (item.variant_id && unitsFromStock > 0) {
+        if (item.variant_id && unitsToReturn > 0) {
           const { data: variant } = await supabase
             .from('product_variants')
             .select('inventory_count')
@@ -480,11 +610,24 @@ export async function refundOrder(
             await supabase
               .from('product_variants')
               .update({
-                inventory_count: variant.inventory_count + unitsFromStock,
+                inventory_count: variant.inventory_count + unitsToReturn,
               })
               .eq('id', item.variant_id);
           }
         }
+      }
+
+      // The made units are back on the shelf now, so the lines no longer hold any. Without
+      // this, moving a line back to not ready later (if the order is un-cancelled) would put
+      // the same units back a second time. Not a status change, so nothing is drawn.
+      const { error: clearError } = await supabase
+        .from('order_items')
+        .update({ units_from_stock_at_ready: 0 })
+        .eq('order_id', orderId)
+        .gt('units_from_stock_at_ready', 0);
+
+      if (clearError) {
+        console.error('Returned stock but clearing the ready record failed:', clearError);
       }
     }
   }
