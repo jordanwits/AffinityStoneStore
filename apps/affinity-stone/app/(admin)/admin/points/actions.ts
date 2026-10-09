@@ -1,7 +1,7 @@
 'use server';
 
 import { requireAdmin } from '@/lib/auth/require-admin';
-import { sendEmail } from '@/lib/email/resend';
+import { sendEmail, deliverableEmail } from '@/lib/email/resend';
 import { pointsAdjustmentNotificationEmail } from '@/lib/email/templates';
 import { displayProfileContact } from '@/lib/auth/display-contact';
 import { revalidatePath } from 'next/cache';
@@ -55,13 +55,16 @@ export async function adjustUserPoints(
     return { success: false, error: 'Failed to adjust points' };
   }
 
+  // Null for a phone-only account, whose address is a placeholder nobody reads
+  const notifyTo = deliverableEmail(targetUser.email);
+
   // Send notification email if requested
-  if (notifyUser && targetUser.email) {
+  if (notifyUser && notifyTo) {
     try {
       const emailResult = await sendEmail({
-        to: targetUser.email,
+        to: notifyTo,
         ...pointsAdjustmentNotificationEmail({
-          recipientEmail: targetUser.email,
+          recipientEmail: notifyTo,
           recipientName: targetUser.full_name ?? undefined,
           deltaPoints,
           reason: reason.trim(),
@@ -81,9 +84,14 @@ export async function adjustUserPoints(
   revalidatePath('/dashboard');
   revalidatePath('/points-history');
   
-  const contactLabel = displayProfileContact(targetUser.email, targetUser.phone);
+  // Given the filtered address, the label falls back to the phone number
+  const contactLabel = displayProfileContact(notifyTo, targetUser.phone);
   const baseMessage = `Successfully ${deltaPoints > 0 ? 'added' : 'deducted'} ${Math.abs(deltaPoints)} points ${deltaPoints > 0 ? 'to' : 'from'} ${contactLabel}`;
-  const message = notifyUser ? `${baseMessage} and notified user by email.` : baseMessage;
+  const message = !notifyUser
+    ? baseMessage
+    : notifyTo
+      ? `${baseMessage} and notified user by email.`
+      : `${baseMessage}. They have no email address on file, so they were not emailed.`;
 
   return { success: true, message };
 }

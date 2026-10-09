@@ -3,8 +3,9 @@
 import { createClient } from '@/lib/supabase/server';
 import { getJwtSubject } from '@/lib/auth/jwt';
 import { revalidatePath, revalidateTag } from 'next/cache';
+import { after } from 'next/server';
 import type { Cart, CartItem } from '@/lib/cart/types';
-import { sendEmail, getAdminEmails } from '@/lib/email/resend';
+import { sendEmail, getAdminEmails, deliverableEmail } from '@/lib/email/resend';
 import { customerOrderConfirmationEmail, adminNewOrderEmail } from '@/lib/email/templates';
 import { getStoreSettings, getProductsByIds, getVariantsByProductIds } from '@/lib/cache/store-data';
 import { displayProfileContact } from '@/lib/auth/display-contact';
@@ -241,14 +242,17 @@ export async function placeOrder(formData: FormData): Promise<PlaceOrderResult> 
           .filter((line) => unitsToMake(line) > 0)
           .map((line) => line.product_name);
 
-        const profileEmail = profileRow?.email?.trim() || '';
-        const customerLabel = displayProfileContact(profileRow?.email, profileRow?.phone);
+        // Empty for a phone-only account, whose address is a placeholder nobody reads. Given
+        // the filtered address, the label falls back to the phone number for those accounts.
+        const profileEmail = deliverableEmail(profileRow?.email) || '';
+        const fallbackEmail = profileEmail || deliverableEmail(user.email) || '';
+        const customerLabel = displayProfileContact(profileEmail, profileRow?.phone);
 
         const emailData = {
           orderId: orderId,
           orderNumber,
-          customerEmail: profileEmail || user.email || '',
-          customerDisplayLabel: customerLabel !== '—' ? customerLabel : profileEmail || user.email || '',
+          customerEmail: fallbackEmail,
+          customerDisplayLabel: customerLabel !== '—' ? customerLabel : fallbackEmail,
           totalPoints: orderDetails.total_points,
           itemCount: items.reduce((sum, item) => sum + item.quantity, 0),
           createdAt: orderDetails.created_at,
@@ -256,20 +260,33 @@ export async function placeOrder(formData: FormData): Promise<PlaceOrderResult> 
           customerNote,
         };
 
-        if (profileEmail) {
-          sendEmail({
-            to: profileEmail,
-            ...customerOrderConfirmationEmail(emailData),
-          }).catch(err => console.error('Failed to send customer email:', err));
+        const adminEmails = getAdminEmails();
+        if (adminEmails.length === 0) {
+          // Without this the store looks fine while nobody hears about new orders
+          console.warn(
+            '[Email] No new-order alert sent: ADMIN_NOTIFICATION_EMAILS is not set'
+          );
         }
 
-        const adminEmails = getAdminEmails();
-        if (adminEmails.length > 0) {
-          sendEmail({
-            to: adminEmails,
-            ...adminNewOrderEmail(emailData),
-          }).catch(err => console.error('Failed to send admin email:', err));
-        }
+        // after() keeps the function alive until the sends finish. A bare unawaited promise
+        // can be cut off when the serverless function is frozen after the response goes out,
+        // which drops the email without any error. sendEmail logs its own failures.
+        after(async () => {
+          await Promise.all([
+            profileEmail
+              ? sendEmail({
+                  to: profileEmail,
+                  ...customerOrderConfirmationEmail(emailData),
+                })
+              : null,
+            adminEmails.length > 0
+              ? sendEmail({
+                  to: adminEmails,
+                  ...adminNewOrderEmail(emailData),
+                })
+              : null,
+          ]);
+        });
       }
     } catch (emailError) {
       // Log but don't fail the order
