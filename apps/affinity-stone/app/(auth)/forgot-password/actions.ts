@@ -2,6 +2,7 @@
 
 import { createAdminClient } from '@/lib/supabase/admin';
 import { sendEmail, getSiteUrl } from '@/lib/email/resend';
+import { allowRequest, requesterIp } from '@/lib/rate-limit';
 
 interface ResetPasswordResult {
   success: boolean;
@@ -22,6 +23,17 @@ export async function sendPasswordResetEmail(email: string): Promise<ResetPasswo
 
   if (isDevMode) {
     return { success: false, error: 'Password reset requires Supabase to be configured.' };
+  }
+
+  // The link is made with the admin API and sent by the app, so Supabase's own limits don't
+  // apply. Without these anyone could flood an inbox, and since each new link replaces the
+  // last, keep someone's real reset link from ever working.
+  if (!(await allowRequest(`password-reset:ip:${await requesterIp()}`, 3600, 10))) {
+    return { success: false, error: 'Too many reset requests from your network. Please try again later.' };
+  }
+  if (!(await allowRequest(`password-reset:email:${trimmedEmail}`, 3600, 3))) {
+    // Reads the same as a sent email, so it says nothing about whether the address has an account
+    return { success: true };
   }
 
   try {
