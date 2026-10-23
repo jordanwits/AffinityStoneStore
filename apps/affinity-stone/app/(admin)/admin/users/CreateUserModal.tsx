@@ -29,6 +29,8 @@ export function CreateUserModal({ isOpen, onClose, isDevMode, initialEmail, init
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successInvite, setSuccessInvite] = useState(false);
+  // Set when the user was created but their invitation email did not go out
+  const [inviteEmailProblem, setInviteEmailProblem] = useState<string | null>(null);
   const [tempPassword, setTempPassword] = useState<string | null>(null);
 
   useEffect(() => {
@@ -56,6 +58,7 @@ export function CreateUserModal({ isOpen, onClose, isDevMode, initialEmail, init
     e.preventDefault();
     setError(null);
     setSuccessInvite(false);
+    setInviteEmailProblem(null);
     setTempPassword(null);
     setLoading(true);
 
@@ -81,7 +84,15 @@ export function CreateUserModal({ isOpen, onClose, isDevMode, initialEmail, init
       return;
     }
 
-    if (result.mode === 'invite') {
+    if (result.mode === 'invite' && !result.emailSent) {
+      // Stays open: staff have to know the user was not told, and creating them again would
+      // only fail as a duplicate
+      setInviteEmailProblem(result.emailError || 'The invitation email could not be sent');
+      setEmail('');
+      setFullName('');
+      setRole('user');
+      router.refresh();
+    } else if (result.mode === 'invite') {
       setSuccessInvite(true);
       setEmail('');
       setPhoneDigits('');
@@ -110,6 +121,7 @@ export function CreateUserModal({ isOpen, onClose, isDevMode, initialEmail, init
     setAddMode('invite');
     setError(null);
     setSuccessInvite(false);
+    setInviteEmailProblem(null);
     setTempPassword(null);
     onClose();
   };
@@ -123,6 +135,7 @@ export function CreateUserModal({ isOpen, onClose, isDevMode, initialEmail, init
       setAddMode('invite');
       setError(null);
       setSuccessInvite(false);
+      setInviteEmailProblem(null);
       setTempPassword(null);
     }
   }, [isOpen]);
@@ -181,6 +194,16 @@ export function CreateUserModal({ isOpen, onClose, isDevMode, initialEmail, init
           <Alert variant="success" className="mb-4">
             <p className="text-sm">
               <strong>User invited successfully!</strong> An invitation email has been sent with a link to set their password.
+            </p>
+          </Alert>
+        )}
+
+        {inviteEmailProblem && (
+          <Alert variant="warning" className="mb-4">
+            <p className="text-sm">
+              <strong>User created, but the invitation email could not be sent.</strong> ({inviteEmailProblem}) They
+              can set a password with &ldquo;Forgot password&rdquo; on the sign-in page, or you can check that
+              RESEND_API_KEY and FROM_EMAIL are set in the deployment.
             </p>
           </Alert>
         )}

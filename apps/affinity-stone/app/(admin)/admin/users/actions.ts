@@ -21,7 +21,9 @@ export interface UpdateUserProfileResult {
 }
 
 export type CreateUserResult =
-  | { success: true; mode: 'invite' }
+  // emailSent is false when the invitation did not go out (Resend failed or isn't set up):
+  // the user exists either way, so staff need to know to share the link some other way
+  | { success: true; mode: 'invite'; emailSent: boolean; emailError?: string }
   | { success: true; mode: 'phone'; temporaryPassword: string }
   | { success: false; error: string };
 
@@ -474,10 +476,12 @@ export async function createUser(
     inviteLink,
   });
 
-  if (!emailResult.success) {
-    console.error('Error sending invite email:', emailResult.error);
-    // User is created but email failed - log it but don't fail the operation
-    // Admin can manually resend the invite if needed
+  // The user is created whether or not the email goes out; the result says which, so the
+  // dialog never claims an invitation was sent when it wasn't. A skipped send (Resend not
+  // configured) did not reach anyone either.
+  const emailSent = emailResult.success && !emailResult.skipped;
+  if (!emailSent) {
+    console.error('Invite email not sent:', emailResult.error ?? 'email is not configured');
   }
 
   // Update the profile role if specified (default is 'user' from schema)
@@ -513,7 +517,12 @@ export async function createUser(
   revalidatePath('/admin/users');
   revalidatePath('/admin');
 
-  return { success: true, mode: 'invite' };
+  return {
+    success: true,
+    mode: 'invite',
+    emailSent,
+    emailError: !emailSent ? emailResult.error ?? 'Email sending is not configured' : undefined,
+  };
 }
 
 async function sendInviteEmail(params: {
