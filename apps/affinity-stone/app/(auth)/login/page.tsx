@@ -10,6 +10,7 @@ import { BrandMark } from 'core/components/BrandMark';
 import { PhoneInput } from 'core/components/PhoneInput';
 import { isCompleteNanpDigits } from 'core/lib/phone-format';
 import { LOGIN_REDIRECT_PARAM, safeRedirectPath } from '@/lib/auth/redirect';
+import { signInErrorMessage } from '@/lib/auth/sign-in-error';
 import { signInWithPhonePassword } from './actions';
 
 type LoginMode = 'email' | 'phone';
@@ -45,7 +46,7 @@ export default function LoginPage() {
         });
 
         if (signError) {
-          setError(signError.message);
+          setError(signInErrorMessage(signError));
         } else {
           router.push(destination);
           router.refresh();

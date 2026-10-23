@@ -3,6 +3,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { normalizeNanpInputToE164 } from '@/lib/auth/phone';
+import { signInErrorMessage } from '@/lib/auth/sign-in-error';
 import { stripPhoneDigits } from 'core/lib/phone-format';
 
 export type PhoneSignInResult = { success: true } | { success: false; error: string };
@@ -69,7 +70,7 @@ export async function signInWithPhonePassword(
   });
 
   if (signInError) {
-    return { success: false, error: signInError.message || 'Invalid phone number or password.' };
+    return { success: false, error: signInErrorMessage(signInError) || 'Invalid phone number or password.' };
   }
 
   return { success: true };
