@@ -44,3 +44,6 @@ next-env.d.ts
 *.swp
 *.swo
 *~
+
+# Local output of scripts/ (image backups, trial previews, change logs)
+scripts/output/
