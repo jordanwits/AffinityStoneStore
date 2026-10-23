@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 
 export type FormattedDateFormat =
   | 'date'       // Jan 15, 2025
@@ -19,10 +19,21 @@ export interface FormattedDateProps {
 
 /**
  * Renders a date in the user's local timezone.
- * Client component - server would use server timezone, so we use suppressHydrationWarning
- * to avoid mismatch when client hydrates with user's actual timezone.
+ *
+ * A server-rendered page formats in the server's timezone (UTC on Vercel), and with
+ * suppressHydrationWarning React kept that text rather than patching it, so a full page
+ * load showed UTC (an 8pm order read as the next day) and only client-side navigation
+ * showed local time. Now the first render, on the server and while hydrating alike, uses
+ * UTC so the two agree, and once mounted it re-renders in the viewer's timezone.
+ *
+ * A plain calendar date ("2026-10-23", from a date filter) is a day, not an instant, so it
+ * is always shown as written rather than shifted into the day before west of UTC.
  */
 export function FormattedDate({ date, format = 'datetimeShort', className = '' }: FormattedDateProps) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
+  const isCalendarDate = typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date);
   const d = typeof date === 'string' ? new Date(date) : date;
   const isValid = !isNaN(d.getTime());
 
@@ -53,10 +64,13 @@ export function FormattedDate({ date, format = 'datetimeShort', className = '' }
                 minute: '2-digit',
               };
 
-  const formatted = d.toLocaleDateString('en-US', options);
+  const formatted = d.toLocaleDateString(
+    'en-US',
+    mounted && !isCalendarDate ? options : { ...options, timeZone: 'UTC' }
+  );
 
   return (
-    <time dateTime={d.toISOString()} suppressHydrationWarning className={className}>
+    <time dateTime={d.toISOString()} className={className}>
       {formatted}
     </time>
   );
