@@ -109,7 +109,7 @@ async function sendResetEmail(params: { email: string; resetLink: string }) {
   <div style="background-color: #fff; border: 1px solid #e5e7eb; border-radius: 8px; padding: 20px; margin-bottom: 20px;">
     <p style="margin: 0 0 15px 0;">Hi,</p>
     <p style="margin: 0 0 15px 0;">
-      Click the button below to reset your password. This link will expire in 24 hours.
+      Click the button below to reset your password. This link will expire in 1 hour.
     </p>
     
     <div style="text-align: center; margin: 30px 0;">
@@ -145,7 +145,7 @@ Reset Your Password
 
 Hi,
 
-We received a request to reset your password. Click the link below to reset it. This link will expire in 24 hours.
+We received a request to reset your password. Click the link below to reset it. This link will expire in 1 hour.
 
 ${params.resetLink}
 

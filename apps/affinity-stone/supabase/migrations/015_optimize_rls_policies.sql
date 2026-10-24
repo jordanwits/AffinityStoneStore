@@ -2,9 +2,7 @@
 -- The is_admin() function was being called multiple times per query
 -- This optimization uses a STABLE function that can be cached within a transaction
 
--- Drop and recreate the is_admin function with better performance
-DROP FUNCTION IF EXISTS is_admin();
-
+-- Replace is_admin function (use CREATE OR REPLACE to avoid dropping dependent policies)
 CREATE OR REPLACE FUNCTION is_admin()
 RETURNS BOOLEAN AS $$
   SELECT COALESCE(

@@ -164,8 +164,10 @@ async function shrink(original) {
 
 function shrunkPath(objectPath) {
   const dot = objectPath.lastIndexOf('.');
-  const base = dot > objectPath.lastIndexOf('/') ? objectPath.slice(0, dot) : objectPath;
-  return `${base}-${MAX_EDGE}.webp`;
+  if (dot <= objectPath.lastIndexOf('/')) return `${objectPath}-${MAX_EDGE}.webp`;
+  // The old extension stays in the name: photo.jpg and photo.png both became photo-1600.webp,
+  // and the second upload failed because the first had taken the name.
+  return `${objectPath.slice(0, dot)}-${objectPath.slice(dot + 1)}-${MAX_EDGE}.webp`;
 }
 
 function printCandidates({ productCount, linkedImages, oversized }, minBytes) {
@@ -239,7 +241,19 @@ async function apply() {
   await saveLog();
   console.log(`\nBacking up originals and logging changes to ${dir}\n`);
 
+  // Ctrl+C used to kill the run partway through relinking an image, before the log was saved,
+  // so undo never heard about the rows already changed. Now it finishes the current image,
+  // saves the log and stops. A second Ctrl+C quits at once.
+  let stopping = false;
+  const onInterrupt = () => {
+    if (stopping) process.exit(130);
+    stopping = true;
+    console.log('\nStopping after this image (Ctrl+C again to quit now)...');
+  };
+  process.on('SIGINT', onInterrupt);
+
   for (const e of found.oversized) {
+    if (stopping) break;
     const label = e.objectPath;
     try {
       const original = await download(e.url);
@@ -282,8 +296,11 @@ async function apply() {
     }
   }
 
+  process.off('SIGINT', onInterrupt);
+  if (stopping) log.stoppedEarly = true;
   log.finishedAt = new Date().toISOString();
   await saveLog();
+  if (stopping) console.log(`\nStopped early; ${log.changes.length} image(s) were changed and logged.`);
   console.log(`\nDone. The storefront picks up the new links within about 5 minutes (its product cache).`);
   console.log(`To put everything back:\n  node scripts/shrink-product-images.mjs undo "${logPath}"\n`);
 }
