@@ -20,8 +20,9 @@ export async function signInWithPhonePassword(
     return { success: false, error: 'Phone sign-in requires Supabase to be configured.' };
   }
 
-  const trimmedPw = password?.trim();
-  if (!trimmedPw) {
+  // Not trimmed: a password is set exactly as typed, spaces included, so trimming it here
+  // made any password starting or ending with a space impossible to sign in with by phone
+  if (!password) {
     return { success: false, error: 'Password is required.' };
   }
 
@@ -42,16 +43,15 @@ export async function signInWithPhonePassword(
 
   const { data: profile, error: profileError } = await admin
     .from('profiles')
-    .select('id, email, active')
+    .select('id, email')
     .eq('phone', e164)
     .maybeSingle();
 
+  // Every failure before the password is checked reads the same as a wrong password, so the
+  // form can't be used to find out which numbers have accounts. A deactivated account is
+  // refused by Supabase Auth itself (migration 048), after this.
   if (profileError || !profile) {
     return { success: false, error: 'Invalid phone number or password.' };
-  }
-
-  if (!profile.active) {
-    return { success: false, error: 'This account is inactive.' };
   }
 
   let signInEmail = profile.email?.trim() || null;
@@ -66,11 +66,18 @@ export async function signInWithPhonePassword(
   const supabase = await createClient();
   const { error: signInError } = await supabase.auth.signInWithPassword({
     email: signInEmail,
-    password: trimmedPw,
+    password,
   });
 
   if (signInError) {
-    return { success: false, error: signInErrorMessage(signInError) || 'Invalid phone number or password.' };
+    // Auth's own "Invalid login credentials" would tell a known number from an unknown one
+    return {
+      success: false,
+      error:
+        signInError.code === 'invalid_credentials'
+          ? 'Invalid phone number or password.'
+          : signInErrorMessage(signInError),
+    };
   }
 
   return { success: true };

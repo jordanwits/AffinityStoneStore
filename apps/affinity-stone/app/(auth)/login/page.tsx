@@ -11,6 +11,7 @@ import { PhoneInput } from 'core/components/PhoneInput';
 import { isCompleteNanpDigits } from 'core/lib/phone-format';
 import { LOGIN_REDIRECT_PARAM, safeRedirectPath } from '@/lib/auth/redirect';
 import { signInErrorMessage } from '@/lib/auth/sign-in-error';
+import { clearCart } from '@/lib/cart/storage';
 import { signInWithPhonePassword } from './actions';
 
 type LoginMode = 'email' | 'phone';
@@ -48,6 +49,9 @@ export default function LoginPage() {
         if (signError) {
           setError(signInErrorMessage(signError));
         } else {
+          // A cart left in this browser belongs to whoever used it last, who may not be
+          // this person (a shared machine, or a session that simply expired)
+          clearCart();
           router.push(destination);
           router.refresh();
         }
@@ -61,6 +65,7 @@ export default function LoginPage() {
         if (!result.success) {
           setError(result.error);
         } else {
+          clearCart();
           router.push(destination);
           router.refresh();
         }

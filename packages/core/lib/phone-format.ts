@@ -9,6 +9,17 @@ export function stripPhoneDigits(value: string): string {
 }
 
 /**
+ * The digits a phone field keeps: 11 when the first is the country code 1, otherwise 10.
+ * Capping every number at 11 let a 10-digit number pick up an 11th digit (pasting
+ * "555 123 4567 ext 2", say) that the display never showed, so the field looked complete
+ * while sign-in stayed disabled and the first backspace seemed to do nothing.
+ */
+export function limitPhoneDigits(value: string): string {
+  const digits = stripPhoneDigits(value);
+  return digits.slice(0, digits.startsWith('1') ? PHONE_INPUT_MAX_DIGITS : 10);
+}
+
+/**
  * NANP display: (555) 123-4567 or +1 (555) 123-4567 style for 11 digits starting with 1.
  */
 export function formatPhoneFieldDisplay(digits: string): string {

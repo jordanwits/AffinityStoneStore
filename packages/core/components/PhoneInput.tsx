@@ -4,8 +4,7 @@ import { useCallback, useId } from 'react';
 import {
   formatPhoneFieldDisplay,
   isCompleteNanpDigits,
-  PHONE_INPUT_MAX_DIGITS,
-  stripPhoneDigits,
+  limitPhoneDigits,
 } from '../lib/phone-format';
 
 export interface PhoneInputProps {
@@ -46,7 +45,7 @@ export function PhoneInput({
 
   const onChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
-      const next = stripPhoneDigits(e.target.value).slice(0, PHONE_INPUT_MAX_DIGITS);
+      const next = limitPhoneDigits(e.target.value);
       onDigitsChange(next);
     },
     [onDigitsChange]
@@ -56,7 +55,7 @@ export function PhoneInput({
     (e: React.ClipboardEvent<HTMLInputElement>) => {
       e.preventDefault();
       const text = e.clipboardData.getData('text') || '';
-      const next = stripPhoneDigits(text).slice(0, PHONE_INPUT_MAX_DIGITS);
+      const next = limitPhoneDigits(text);
       onDigitsChange(next);
     },
     [onDigitsChange]

@@ -280,6 +280,9 @@ export async function createUser(
       user_metadata: {
         phone_e164: e164,
         full_name: input.fullName?.trim() || null,
+      },
+      // app_metadata, which the user cannot change themselves (see must-change-password.ts)
+      app_metadata: {
         [MUST_CHANGE_PASSWORD_KEY]: true,
       },
     });

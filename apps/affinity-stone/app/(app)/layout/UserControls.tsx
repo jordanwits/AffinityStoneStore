@@ -5,6 +5,7 @@ import Link from 'next/link';
 import MobileMenu from './MobileMenu';
 import { createClient } from '@/lib/supabase/client';
 import { displayProfileContact } from '@/lib/auth/display-contact';
+import { clearCart } from '@/lib/cart/storage';
 
 type UserControlsProps = {
   isDevMode: boolean;
@@ -101,7 +102,7 @@ export default function UserControls({ isDevMode }: UserControlsProps) {
                 Admin
               </Link>
             )}
-            <form action="/logout" method="POST">
+            <form action="/logout" method="POST" onSubmit={() => clearCart()}>
               <button
                 type="submit"
                 className="text-sm font-medium text-gray-700 hover:text-gray-900 px-3 py-1.5 rounded-md hover:bg-gray-100 transition-colors"

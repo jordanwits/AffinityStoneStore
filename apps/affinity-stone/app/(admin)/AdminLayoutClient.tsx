@@ -5,6 +5,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { BrandMark } from 'core/components/BrandMark';
 import { createClient } from '@/lib/supabase/client';
 import { displayProfileContact } from '@/lib/auth/display-contact';
+import { clearCart } from '@/lib/cart/storage';
 
 interface AdminLayoutClientProps {
   children: React.ReactNode;
@@ -159,7 +160,7 @@ export function AdminLayoutClient({ children, isDevMode }: AdminLayoutClientProp
               ) : (
                 <>
                   <span className="text-sm text-gray-600 truncate max-w-[150px] hidden sm:inline">{userEmail}</span>
-                  <form action="/logout" method="POST">
+                  <form action="/logout" method="POST" onSubmit={() => clearCart()}>
                     <button
                       type="submit"
                       className="text-sm font-medium text-gray-700 hover:text-gray-900 px-3 py-1.5 rounded-md hover:bg-gray-100 transition-colors"

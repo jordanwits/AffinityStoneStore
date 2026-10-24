@@ -6,7 +6,7 @@ import { createClient } from '@/lib/supabase/client';
 import { Button } from 'core/components/Button';
 import { Card, CardContent } from 'core/components/Card';
 import { Alert } from 'core/components/Alert';
-import { MUST_CHANGE_PASSWORD_KEY } from '@/lib/auth/must-change-password';
+import { changePassword } from './actions';
 
 export function UpdatePasswordContent() {
   const router = useRouter();
@@ -22,46 +22,45 @@ export function UpdatePasswordContent() {
   const [success, setSuccess] = useState(false);
   const [isValidSession, setIsValidSession] = useState<boolean | null>(null);
   const [sessionReady, setSessionReady] = useState(false);
-  const [debugInfo, setDebugInfo] = useState<string>('');
 
   useEffect(() => {
     const checkSession = async () => {
       const supabase = createClient();
-      
+
       const hash = window.location.hash;
-      const search = window.location.search;
-      setDebugInfo(`Hash: ${hash || 'none'} | Search: ${search || 'none'}`);
-      
+
       const hashParams = new URLSearchParams(hash.substring(1));
       const accessToken = hashParams.get('access_token');
       const refreshToken = hashParams.get('refresh_token');
       const tokenType = hashParams.get('type');
-      
+
+      // The link's tokens come off the address bar (and out of history) as soon as they are
+      // read, whether or not they work. They used to stay there when a link failed, and a
+      // "Debug Info" panel printed the whole hash, tokens included, on the error screen.
+      if (hash) {
+        window.history.replaceState(null, '', window.location.pathname + window.location.search);
+      }
+
       const hasToken = accessToken && (tokenType === 'invite' || tokenType === 'recovery');
-      
+
       if (hasToken && accessToken && refreshToken) {
         setIsValidSession(true);
-        setDebugInfo(prev => `${prev} | Token detected, setting session...`);
-        
+
         try {
           const { data, error: sessionError } = await supabase.auth.setSession({
             access_token: accessToken,
             refresh_token: refreshToken,
           });
-          
+
           if (sessionError) {
-            console.error('Error setting session:', sessionError);
-            setDebugInfo(prev => `${prev} | Error: ${sessionError.message}`);
+            console.error('Error setting session:', sessionError.message);
             setIsValidSession(false);
             return;
           }
-          
+
           if (data.session) {
-            setDebugInfo(prev => `${prev} | Session established!`);
             setIsValidSession(true);
             setSessionReady(true);
-            
-            window.history.replaceState(null, '', window.location.pathname + window.location.search);
           }
         } catch (err) {
           console.error('Error setting session:', err);
@@ -71,8 +70,6 @@ export function UpdatePasswordContent() {
       }
       
       const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-        setDebugInfo(prev => `${prev} | Event: ${event}`);
-        
         if ((event === 'PASSWORD_RECOVERY' || event === 'SIGNED_IN') && session) {
           setIsValidSession(true);
           setSessionReady(true);
@@ -125,14 +122,13 @@ export function UpdatePasswordContent() {
 
     try {
       const supabase = createClient();
-      
-      const { error: updateError } = await supabase.auth.updateUser({
-        password: password,
-        data: { [MUST_CHANGE_PASSWORD_KEY]: false },
-      });
 
-      if (updateError) {
-        setError(updateError.message);
+      // Done on the server, which is the only place that can lift the must-change-password
+      // flag, and only once the new password is in place
+      const result = await changePassword(password);
+
+      if (!result.success) {
+        setError(result.error || 'Failed to update password');
         setLoading(false);
         return;
       }
@@ -179,12 +175,6 @@ export function UpdatePasswordContent() {
               <p className="text-gray-600 mb-4">
                 This password reset link is invalid or has expired.
               </p>
-              {debugInfo && (
-                <details className="text-left bg-gray-100 p-3 rounded text-xs text-gray-700 mb-4">
-                  <summary className="cursor-pointer font-semibold">Debug Info</summary>
-                  <pre className="mt-2 whitespace-pre-wrap break-words">{debugInfo}</pre>
-                </details>
-              )}
             </div>
             <Button
               variant="primary"
