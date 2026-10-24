@@ -99,7 +99,9 @@ export async function adjustUserPoints(
   // Null for a phone-only account, whose address is a placeholder nobody reads
   const notifyTo = deliverableEmail(targetUser.email);
 
-  // Send notification email if requested
+  // Send notification email if requested. Whether it actually went decides what staff are
+  // told: a send skipped because email is not set up used to read as "notified".
+  let emailed = false;
   if (notifyUser && notifyTo) {
     try {
       const emailResult = await sendEmail({
@@ -111,6 +113,7 @@ export async function adjustUserPoints(
           reason: reason.trim(),
         }),
       });
+      emailed = emailResult.success && !emailResult.skipped;
       if (!emailResult.success && !emailResult.skipped) {
         console.error('Failed to send points notification email:', emailResult.error);
       }
@@ -130,9 +133,11 @@ export async function adjustUserPoints(
   const baseMessage = `Successfully ${deltaPoints > 0 ? 'added' : 'deducted'} ${Math.abs(deltaPoints)} points ${deltaPoints > 0 ? 'to' : 'from'} ${contactLabel}`;
   const message = !notifyUser
     ? baseMessage
-    : notifyTo
-      ? `${baseMessage} and notified user by email.`
-      : `${baseMessage}. They have no email address on file, so they were not emailed.`;
+    : !notifyTo
+      ? `${baseMessage}. They have no email address on file, so they were not emailed.`
+      : emailed
+        ? `${baseMessage} and notified user by email.`
+        : `${baseMessage}, but the email to them could not be sent.`;
 
   return { success: true, message };
 }

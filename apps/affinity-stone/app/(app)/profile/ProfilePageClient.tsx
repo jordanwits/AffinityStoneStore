@@ -51,13 +51,16 @@ export default function ProfilePageClient({
 
     startTransition(async () => {
       const result: UpdateProfileResult = await updateProfile({
-        fullName: fullName.trim() || undefined,
-        addressLine1: addressLine1.trim() || undefined,
-        addressLine2: addressLine2.trim() || undefined,
-        city: city.trim() || undefined,
-        state: state.trim() || undefined,
-        zip: zip.trim() || undefined,
-        country: country.trim() || undefined,
+        // Empty strings rather than undefined: the action skips a field it is not sent, so
+        // emptying one used to leave the old value in place while reporting success. It
+        // stores an empty field as cleared.
+        fullName: fullName.trim(),
+        addressLine1: addressLine1.trim(),
+        addressLine2: addressLine2.trim(),
+        city: city.trim(),
+        state: state.trim(),
+        zip: zip.trim(),
+        country: country.trim(),
       });
 
       if (result.success) {
